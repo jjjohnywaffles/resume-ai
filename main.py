@@ -1,3 +1,9 @@
+""" Author: Jonathan Hu
+    main.py
+    The main application logic for the analyzer. Initializes all functions in order so it returns properly.
+"""
+
+
 from ai_analyzer import AIAnalyzer
 from database import DatabaseManager
 from pdf_reader import PDFReader

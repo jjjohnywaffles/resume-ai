@@ -1,3 +1,9 @@
+""" 
+Author: Jonathan Hu
+pdf_reader.py
+The main logic for parsing through the pdf file. These functions are invoked before the resume is sent to the ai.
+"""
+
 import PyPDF2
 import io
 

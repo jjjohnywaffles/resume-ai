@@ -1,3 +1,9 @@
+""" 
+Author: Jonathan Hu
+database.py
+This file acts as the connection logic to the database. Also stores the database schema.
+"""
+
 from pymongo import MongoClient
 from datetime import datetime
 import config

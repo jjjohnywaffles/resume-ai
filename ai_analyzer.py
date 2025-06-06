@@ -1,3 +1,12 @@
+""" 
+Author: Jonathan Hu
+ai_analyzer.py
+This file takes the user's input from both the name, resume and job description and sends it to an ai model.
+The ai model then processes both the resume and job description to return json objects.
+The json objects are then sent back to the ai model for a compatibility comparison.
+The compatibility score is based on a specific criteria designed to return an accurate representation of a resume to the job description.
+"""
+
 import json
 import openai
 import config
@@ -137,7 +146,7 @@ class AIAnalyzer:
         """Calculate compatibility score between resume and job"""
         prompt = f"""
         Compare the following resume data with job requirements and provide a compatibility score from 1-100.
-        
+
         SCORING FORMULA:
         
         1. BASE SCORE: Start with 100 points

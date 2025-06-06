@@ -1,3 +1,11 @@
+""" 
+Author: Jonathan Hu + AI
+gui.py
+This file is the main code behind the gui of the application.
+Due to my inability to design or be artistically creative, I had an AI help me out.
+This is otherwise just a basic gui that allows the user to upload their resume and input a job description for a comparison.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, filedialog
 import threading
