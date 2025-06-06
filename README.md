@@ -65,9 +65,7 @@ An AI-powered resume analysis system that provides intelligent matching between 
 | `run_gui.py`         | GUI entry point                     |
 
 ## Usage
-- Launch the GUI application:
-      bash
-      python run_gui.py
+- Launch the GUI application:  python run_gui.py
 
 ## How It Works
 - Upload your resume (PDF format)
