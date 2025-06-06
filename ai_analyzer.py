@@ -11,12 +11,14 @@ import json
 import openai
 import config
 
+# Analyzer class, extracts information and formats it into json. 
 class AIAnalyzer:
     def __init__(self):
         if not config.OPENAI_API_KEY:
             raise ValueError("OpenAI API key not found. Please check your .env file.")
         openai.api_key = config.OPENAI_API_KEY
     
+    # Format resume
     def extract_resume_data(self, resume_text):
         """Extract skills and experience from resume"""
         prompt = f"""
@@ -51,6 +53,8 @@ class AIAnalyzer:
         try:
             print("🔍 MAKING OPENAI API CALL - Resume Analysis...")
             response = openai.ChatCompletion.create(
+
+                # USE MINI MODEL FOR TEST PLS
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
@@ -198,6 +202,9 @@ class AIAnalyzer:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
+                # LIMIT THE TOKENS SO IT DOES NOT RETURN ANYTHING BESIDES A NUMBER VERY IMPORTANT PLS READ
+                # LIMIT THE TOKENS SO IT DOES NOT RETURN ANYTHING BESIDES A NUMBER VERY IMPORTANT PLS READ
+                # LIMIT THE TOKENS SO IT DOES NOT RETURN ANYTHING BESIDES A NUMBER VERY IMPORTANT PLS READ
                 max_tokens=10
             )
             

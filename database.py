@@ -10,6 +10,7 @@ import config
 
 class DatabaseManager:
     def __init__(self):
+        # DB Connection
         self.client = MongoClient(config.MONGODB_URI)
         self.db = self.client[config.DATABASE_NAME]
         self.collection = self.db.resume_analyses

@@ -1,6 +1,7 @@
-""" Author: Jonathan Hu
-    main.py
-    The main application logic for the analyzer. Initializes all functions in order so it returns properly.
+"""
+Author: Jonathan Hu
+main.py
+The main application logic for the analyzer. Initializes all functions in order so it returns properly.
 """
 
 
