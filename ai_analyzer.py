@@ -138,19 +138,46 @@ class AIAnalyzer:
         prompt = f"""
         Compare the following resume data with job requirements and provide a compatibility score from 1-100.
         
+        SCORING FORMULA:
+        
+        1. BASE SCORE: Start with 100 points
+        
+        2. REQUIRED SKILLS DEDUCTIONS:
+        - For each missing required skill: -15 points
+        - For each partial match: -7 points
+        - Maximum deduction: -45 points
+        
+        3. EXPERIENCE DEDUCTIONS:
+        - If years < 50% of required: -30 points
+        - If years 50-75% of required: -20 points
+        - If years 75-99% of required: -10 points
+        - If relevance score < 5/10: additional -15 points
+        - Maximum deduction: -45 points
+        
+        4. EDUCATION DEDUCTIONS:
+        - If education requirement not met: -20 points
+        - If degree is unrelated field: -10 points
+        
+        5. BONUS POINTS:
+        - Each preferred skill matched: +3 points
+        - Exceeds experience requirements: +5 points
+        - Advanced degree when not required: +5 points
+        - Maximum bonus: +15 points
+        
+        6. FINAL ADJUSTMENTS:
+        - Each major concern/red flag: -5 points
+        - If the job description is missing requirements, do not deduct points from the user.
+        - Ensure score is between 10-95 (reserve extremes for truly exceptional cases)
+        
+        Calculate the score step by step and return ONLY the final number.
+        Do not include any text, explanation, or formatting. Just the number.
+        
         Resume Data:
         {json.dumps(resume_data, indent=2)}
         
         Job Requirements:
         {json.dumps(job_requirements, indent=2)}
         
-        Analyze the match based on:
-        1. Skills alignment (40% weight)
-        2. Experience relevance (30% weight)
-        3. Education match (20% weight)
-        4. Overall fit (10% weight)
-        
-        Return only a number between 1-100 representing the compatibility score.
         """
         
         try:
