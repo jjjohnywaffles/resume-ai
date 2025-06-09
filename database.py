@@ -15,7 +15,7 @@ class DatabaseManager:
         self.db = self.client[config.DATABASE_NAME]
         self.collection = self.db.resume_analyses
     
-    def save_analysis(self, name, resume_data, job_description_data, match_score):
+    def save_analysis(self, name, resume_data, job_description_data, match_score, explanation=None):
         """Save resume analysis to database"""
         document = {
             "name": name,
@@ -24,6 +24,10 @@ class DatabaseManager:
             "match_score": match_score,
             "timestamp": datetime.utcnow()
         }
+        
+        # Add explanation if provided
+        if explanation:
+            document["explanation"] = explanation
         
         # Update if name exists, otherwise insert new
         result = self.collection.update_one(

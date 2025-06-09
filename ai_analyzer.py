@@ -146,89 +146,204 @@ class AIAnalyzer:
             print(f"API CALL FAILED: {e}")
             return {"error": f"API call failed: {str(e)}"}
     
-    def calculate_match_score(self, resume_data, job_requirements):
-        """Calculate compatibility score between resume and job"""
+    def explain_match_score(self, resume_data, job_requirements):
+        """Calculate compatibility score with detailed explanation - CONSISTENT SCORING VERSION"""
         prompt = f"""
-        Compare the following resume data with job requirements and provide a compatibility score from 1-100.
+        You are a precise HR scoring system. Calculate a compatibility score from 1-100 using EXACTLY the formula below.
+        Be mathematically consistent - the same inputs should always produce the same score.
 
-        SCORING FORMULA:
+        MANDATORY SCORING FORMULA (follow exactly):
         
-        1. BASE SCORE: Start with 100 points
+        1. BASE SCORE: Always start with 100 points
         
-        2. REQUIRED SKILLS DEDUCTIONS:
-        - For each missing required skill: -15 points
-        - For each partial match: -7 points
-        - Maximum deduction: -45 points
+        2. REQUIRED SKILLS SCORING:
+        For EACH required skill, evaluate if it's:
+        - FULLY SATISFIED (0 deduction): Exact match OR very close equivalent (Python=Django/Flask, JavaScript=React/Node.js, Database=SQL/MySQL)
+        - PARTIALLY SATISFIED (-7 points): Related skill or transferable experience 
+        - NOT SATISFIED (-15 points): No relevant skills or experience found
         
-        3. EXPERIENCE DEDUCTIONS:
-        - If years < 50% of required: -30 points
-        - If years 50-75% of required: -20 points
-        - If years 75-99% of required: -10 points
-        - If relevance score < 5/10: additional -15 points
-        - Maximum deduction: -45 points
+        Maximum deduction: -45 points (cap at 3 major missing skills)
         
-        4. EDUCATION DEDUCTIONS:
-        - If education requirement not met: -20 points
-        - If degree is unrelated field: -10 points
+        3. EXPERIENCE SCORING:
+        Calculate experience gap:
+        - Meets or exceeds requirement: 0 deduction
+        - 75-99% of required: -10 points
+        - 50-74% of required: -20 points  
+        - Under 50% of required: -30 points
+        - Experience completely unrelated to role: additional -15 points
+        Maximum deduction: -45 points
+        
+        4. EDUCATION SCORING:
+        - Meets requirement exactly: 0 deduction
+        - Related field or higher degree: -5 points
+        - Unrelated field: -10 points
+        - Missing required degree entirely: -20 points
+        Maximum deduction: -20 points
         
         5. BONUS POINTS:
         - Each preferred skill matched: +3 points
-        - Exceeds experience requirements: +5 points
+        - Exceeds experience requirement significantly: +5 points
         - Advanced degree when not required: +5 points
-        - Maximum bonus: +15 points
+        Maximum bonus: +15 points
         
-        6. FINAL ADJUSTMENTS:
-        - Each major concern/red flag: -5 points
-        - If the job description is missing requirements, do not deduct points from the user.
-        - Ensure score is between 10-95 (reserve extremes for truly exceptional cases)
+        6. FINAL CONSTRAINTS:
+        - Minimum score: 15 (even worst candidates have some value)
+        - Maximum score: 95 (reserve 96+ for truly exceptional fits)
+        - Round to nearest whole number
+
+        CALCULATION REQUIREMENTS:
+        - Show your math step by step
+        - Count each deduction/bonus precisely
+        - Apply the constraints at the end
+        - Be consistent: same analysis = same score every time
+
+        FORMAT YOUR RESPONSE EXACTLY AS:
+
+        ## COMPATIBILITY ANALYSIS
+
+        ### 1. BASE SCORE
+        Starting score: 100 points
+
+        ### 2. REQUIRED SKILLS ANALYSIS (Mathematical Breakdown)
+        Required skills from job: [list each one]
         
-        Calculate the score step by step and return ONLY the final number.
-        Do not include any text, explanation, or formatting. Just the number.
+        Skill-by-skill evaluation:
+        [For each required skill, state: SKILL NAME - STATUS (Fully/Partially/Not Satisfied) - DEDUCTION]
         
+        Skills calculation:
+        - Fully satisfied: [count] × 0 = 0 points
+        - Partially satisfied: [count] × -7 = -[total] points  
+        - Not satisfied: [count] × -15 = -[total] points
+        Total skills deduction: -[sum] points (capped at -45)
+
+        ### 3. EXPERIENCE ANALYSIS (Mathematical Breakdown)
+        Required: [state requirement]
+        Candidate has: [state experience]
+        Gap analysis: [percentage of requirement met]
+        Relevance: [relevant/somewhat relevant/unrelated]
+        
+        Experience calculation:
+        - Experience gap deduction: -[amount] points
+        - Relevance deduction: -[amount] points  
+        Total experience deduction: -[sum] points (capped at -45)
+
+        ### 4. EDUCATION ANALYSIS (Mathematical Breakdown)
+        Required: [state requirement]
+        Candidate has: [state education]
+        Match level: [exact/related/unrelated/missing]
+        
+        Education deduction: -[amount] points (capped at -20)
+
+        ### 5. BONUS CALCULATION (Mathematical Breakdown)
+        Preferred skills matched: [list] = [count] × 3 = +[total] points
+        Experience bonus: [yes/no] = +[amount] points
+        Education bonus: [yes/no] = +[amount] points
+        Total bonus: +[sum] points (capped at +15)
+
+        ### 6. FINAL CALCULATION
+        Base score: 100
+        Skills deduction: -[X]
+        Experience deduction: -[Y]  
+        Education deduction: -[Z]
+        Bonus points: +[A]
+        Raw total: [100-X-Y-Z+A]
+        Applied constraints: [15-95 range]
+        
+        **FINAL COMPATIBILITY SCORE: [final_number]/100**
+
+        ### CONSISTENCY CHECK
+        Verify: Base(100) - Skills([X]) - Experience([Y]) - Education([Z]) + Bonus([A]) = [final_number]
+
         Resume Data:
         {json.dumps(resume_data, indent=2)}
         
         Job Requirements:
         {json.dumps(job_requirements, indent=2)}
-        
         """
         
         try:
-            print("🔍 MAKING OPENAI API CALL - Score Calculation...")
+            print("🔍 MAKING OPENAI API CALL - Consistent Score Calculation...")
             response = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are a scoring assistant. Only respond with a single integer from 1 to 100. No explanation."},
+                    {
+                        "role": "system", 
+                        "content": "You are a precise mathematical scoring system. Always follow the exact formula provided. Be consistent - identical inputs must produce identical outputs. Show all mathematical calculations step by step."
+                    },
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                # LIMIT THE TOKENS SO IT DOES NOT RETURN ANYTHING BESIDES A NUMBER VERY IMPORTANT PLS READ
-                # LIMIT THE TOKENS SO IT DOES NOT RETURN ANYTHING BESIDES A NUMBER VERY IMPORTANT PLS READ
-                # LIMIT THE TOKENS SO IT DOES NOT RETURN ANYTHING BESIDES A NUMBER VERY IMPORTANT PLS READ
-                max_tokens=10
+                temperature=0.0,  # CRITICAL: Set to 0 for maximum consistency
+                max_tokens=2500,
+                top_p=1.0,        # Use default top_p for consistency
+                frequency_penalty=0.0,  # No penalties that could cause variation
+                presence_penalty=0.0
             )
             
-            print("RAW OPENAI RESPONSE (Score):")
+            print("📥 RAW OPENAI RESPONSE (Consistent Analysis):")
             print("=" * 60)
             print(f"Full Response Object: {response}")
             print("=" * 60)
             
-            content = response.choices[0].message.content.strip()
-            print("EXTRACTED CONTENT:")
+            content = response.choices[0].message.content
+            print("📄 EXTRACTED CONTENT:")
             print("=" * 60)
-            print(f"'{content}'")
+            print(content)
             print("=" * 60)
             
-            score = int(content)
-            final_score = max(1, min(100, score))
-            print(f"FINAL SCORE: {final_score}")
+            # Extract the final score more reliably
+            import re
             
-            return final_score
+            # Primary extraction method
+            score_match = re.search(r'\*\*FINAL COMPATIBILITY SCORE: (\d+)/100\*\*', content)
+            if score_match:
+                final_score = int(score_match.group(1))
+            else:
+                # Fallback extraction methods
+                score_patterns = [
+                    r'FINAL COMPATIBILITY SCORE: (\d+)',
+                    r'Final score: (\d+)',
+                    r'Applied constraints: (\d+)',
+                    r'(\d+)/100'
+                ]
+                
+                final_score = None
+                for pattern in score_patterns:
+                    match = re.search(pattern, content)
+                    if match:
+                        final_score = int(match.group(1))
+                        break
+                
+                if final_score is None:
+                    print("⚠️ WARNING: Could not extract score, using fallback calculation")
+                    # Emergency fallback: basic calculation from content
+                    final_score = 50
             
-        except ValueError as e:
-            print(f"CORE PARSING FAILED: {e}")
-            print(f"Raw content that failed to parse: '{content}'")
-            return 0  # Default score if parsing fails
+            # Apply consistency constraints
+            final_score = max(15, min(95, final_score))
+            
+            print(f"✅ EXTRACTED FINAL SCORE: {final_score}")
+            
+            return {
+                "explanation": content,
+                "score": final_score
+            }
+            
         except Exception as e:
-            print(f"API CALL FAILED: {e}")
-            return 0  # Default score if API call fails
+            print(f"❌ API CALL FAILED: {e}")
+            return {
+                "explanation": "Failed to generate detailed explanation",
+                "score": 0,
+                "error": f"API call failed: {str(e)}"
+            }
+    def calculate_match_score(self, resume_data, job_requirements):
+        """Calculate compatibility score between resume and job - WRAPPER FUNCTION"""
+        print("🔍 CALCULATING MATCH SCORE (using detailed explanation method)...")
+        
+        # Call the detailed explanation function
+        result = self.explain_match_score(resume_data, job_requirements)
+        
+        # Extract just the score
+        score = result.get("score", 0)
+        
+        print(f"✅ FINAL SCORE: {score}")
+        return score
