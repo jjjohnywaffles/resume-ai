@@ -44,6 +44,70 @@ class DatabaseManager:
     def get_all_analyses(self):
         """Get all analyses"""
         return list(self.collection.find())
+
+
+    
+    def get_analysis_by(self, query={}, projection=None):
+        """
+        Pull data from the collection with optional query and projection
+        Args:
+            query (dict): MongoDB query to filter documents
+            projection (dict): Fields to include/exclude in results
+        Returns:
+            list: Matching documents
+        """
+        if projection:
+            return list(self.collection.find(query, projection))
+        return list(self.collection.find(query))
+    
+    def compare_scores_by(self, job_description_query: dict = {}, k: int = 5) -> List[Dict]:
+        """
+        Compare match scores from analyses filtered by job description and return top k performers
+        Args:
+            job_description_query: Dictionary to filter job descriptions
+                                  Example: {"position": "Software Engineer"}
+            k: Number of top performers to return
+        Returns:
+            list: Sorted list of top k analyses with names, scores, and resume data
+                  Empty list if no matches found
+        """
+        # Build the query to match job description criteria
+        query = {}
+        if job_description_query:
+            query = {"job_description_data": {"$elemMatch": job_description_query}}
+        
+        # Pull data matching the job description criteria
+        analyses = self.get_analysis_by(
+            query=query,
+            projection={
+                "name": 1,
+                "match_score": 1,
+                "resume_data": 1,
+                "job_description_data": 0,
+                "_id": 0
+            }
+        )
+        if not analyses:
+            return []
+        
+        # Sort analyses by match_score in descending order
+        sorted_analyses = sorted(
+            analyses,
+            key=lambda x: x.get('match_score', 0),
+            reverse=True
+        )
+        
+        # Return top k analyses with relevant information
+        top_k = []
+        for analysis in sorted_analyses[:k]:
+            top_k.append({
+                'name': analysis.get('name', ''),
+                'score': analysis.get('match_score', 0),
+                'resume_summary': analysis.get('resume_data', {}).get('summary', ''),
+                'skills': analysis.get('resume_data', {}).get('skills', [])
+            })
+        
+        return top_k
     
     def close_connection(self):
         """Close database connection"""
