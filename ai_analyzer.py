@@ -158,7 +158,7 @@ class AIAnalyzer:
         
         2. REQUIRED SKILLS SCORING:
         For EACH required skill, evaluate if it's:
-        - FULLY SATISFIED (0 deduction): Exact match OR very close equivalent (Python=Django/Flask, JavaScript=React/Node.js, Database=SQL/MySQL)
+        - FULLY SATISFIED (0 deduction): Exact match OR equivalent (Python=Django/Flask, JavaScript=React/Node.js, Database=SQL/MySQL, Data Preprocessing=cleaning/quality)
         - PARTIALLY SATISFIED (-7 points): Related skill or transferable experience 
         - NOT SATISFIED (-15 points): No relevant skills or experience found
         
