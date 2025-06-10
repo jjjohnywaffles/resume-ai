@@ -21,6 +21,7 @@ class ResumeAnalyzerGUI:
         
         # Initialize analyzer as None first
         self.analyzer = None
+        self.current_result = None  # Store current analysis result for explanation feature
         
         try:
             self.analyzer = ResumeAnalyzer()
@@ -182,6 +183,22 @@ class ResumeAnalyzerGUI:
         )
         self.clear_button.pack(side='left', padx=(15, 0))
         
+        # NEW: Detailed explanation button
+        self.explain_button = tk.Button(
+            button_frame,
+            text="📝 View Detailed Explanation",
+            font=("Arial", 12),
+            bg='#f39c12',
+            fg='white',
+            relief='flat',
+            padx=20,
+            pady=8,
+            command=self.show_detailed_explanation,
+            cursor='hand2'
+        )
+        self.explain_button.pack(side='left', padx=(15, 0))
+        self.explain_button.config(state='disabled')  # Initially disabled
+        
         self.history_button = tk.Button(
             button_frame,
             text="📊 View History",
@@ -262,6 +279,10 @@ class ResumeAnalyzerGUI:
         self.browse_button.config(text="📁 Browse for PDF")
         self.results_frame.pack_forget()
         self.progress_frame.pack_forget()
+        
+        # Clear current result and disable explanation button
+        self.current_result = None
+        self.explain_button.config(state='disabled')
     
     def start_analysis(self):
         """Start the analysis in a separate thread"""
@@ -296,6 +317,7 @@ class ResumeAnalyzerGUI:
         self.analyze_button.config(state='disabled', text='🔄 Analyzing...')
         self.browse_button.config(state='disabled')
         self.clear_button.config(state='disabled')
+        self.explain_button.config(state='disabled')
         
         self.progress.start()
         self.status_label.config(text="Processing resume and job description...")
@@ -311,7 +333,34 @@ class ResumeAnalyzerGUI:
     def run_analysis(self, name, resume_path, job_description):
         """Run the analysis"""
         try:
-            result = self.analyzer.analyze_resume(name, resume_path, job_description)
+            # Extract text from resume PDF
+            resume_text = self.analyzer.pdf_reader.extract_text_from_pdf(resume_path)
+            
+            if resume_text.startswith("Error"):
+                self.root.after(0, self.show_error, resume_text)
+                return
+            
+            # Extract structured data from resume and job
+            resume_data = self.analyzer.ai_analyzer.extract_resume_data(resume_text)
+            job_requirements = self.analyzer.ai_analyzer.extract_job_requirements(job_description)
+            
+            # Get detailed explanation AND score in one call (no duplicate API calls)
+            explanation_result = self.analyzer.ai_analyzer.explain_match_score(resume_data, job_requirements)
+            match_score = explanation_result["score"]
+            cached_explanation = explanation_result["explanation"]
+            
+            # Save to database
+            self.analyzer.db_manager.save_analysis(name, resume_data, job_requirements, match_score)
+            
+            # Build result with cached explanation
+            result = {
+                "name": name,
+                "resume_data": resume_data,
+                "job_requirements": job_requirements,
+                "match_score": match_score,
+                "cached_explanation": cached_explanation  # Store explanation for later use
+            }
+            
             self.root.after(0, self.show_results, result)
         except Exception as e:
             self.root.after(0, self.show_error, str(e))
@@ -328,6 +377,12 @@ class ResumeAnalyzerGUI:
         if 'error' in result:
             messagebox.showerror("Analysis Error", result['error'])
             return
+        
+        # Store current result for explanation feature
+        self.current_result = result
+        
+        # Enable explanation button
+        self.explain_button.config(state='normal')
         
         # Clear previous results
         for widget in self.results_frame.winfo_children():
@@ -450,7 +505,7 @@ class ResumeAnalyzerGUI:
         # Success message
         messagebox.showinfo(
             "Analysis Complete", 
-            f"Analysis completed successfully!\nMatch Score: {score}/100\n\nResults saved to database."
+            f"Analysis completed successfully!\nMatch Score: {score}/100\n\nResults saved to database.\n\nClick 'View Detailed Explanation' to see the scoring breakdown."
         )
     
     def show_error(self, error_message):
@@ -461,6 +516,117 @@ class ResumeAnalyzerGUI:
         self.browse_button.config(state='normal')
         self.clear_button.config(state='normal')
         messagebox.showerror("Analysis Error", f"Error during analysis:\n\n{error_message}")
+    
+    def show_detailed_explanation(self):
+        """Show detailed explanation for the current analysis"""
+        if not self.current_result:
+            messagebox.showwarning("No Analysis", "Please run an analysis first.")
+            return
+        
+        # Check if we have a cached explanation
+        if "cached_explanation" in self.current_result:
+            # Use the cached explanation (no API call needed)
+            self.display_explanation(self.current_result["cached_explanation"])
+        else:
+            # Fallback: generate explanation if not cached (shouldn't happen with new flow)
+            try:
+                # Disable button and show loading state
+                self.explain_button.config(state='disabled', text='🔄 Generating...')
+                
+                def get_explanation():
+                    try:
+                        result = self.analyzer.ai_analyzer.explain_match_score(
+                            self.current_result['resume_data'],
+                            self.current_result['job_requirements']
+                        )
+                        self.root.after(0, self.display_explanation, result["explanation"])
+                    except Exception as e:
+                        self.root.after(0, self.show_explanation_error, str(e))
+                
+                # Run in separate thread
+                thread = threading.Thread(target=get_explanation)
+                thread.daemon = True
+                thread.start()
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to generate explanation:\n{str(e)}")
+                self.explain_button.config(state='normal', text='📝 Get Detailed Explanation')
+
+    def display_explanation(self, explanation):
+        """Display the detailed explanation in a new window"""
+        # Re-enable button (no loading state needed for cached explanations)
+        self.explain_button.config(state='normal', text='📝 View Detailed Explanation')
+        
+        # Create new window
+        window = tk.Toplevel(self.root)
+        window.title("Detailed Score Explanation")
+        window.geometry("900x700")
+        window.configure(bg='#f0f0f0')
+        
+        # Make window modal
+        window.transient(self.root)
+        window.grab_set()
+        
+        # Title
+        title_frame = tk.Frame(window, bg='#f0f0f0')
+        title_frame.pack(fill='x', pady=20)
+        
+        tk.Label(
+            title_frame,
+            text="📊 Compatibility Score Breakdown",
+            font=("Arial", 18, "bold"),
+            bg='#f0f0f0',
+            fg='#2c3e50'
+        ).pack()
+        
+        tk.Label(
+            title_frame,
+            text=f"Analysis for: {self.current_result['name']}",
+            font=("Arial", 12),
+            bg='#f0f0f0',
+            fg='#7f8c8d'
+        ).pack()
+        
+        # Explanation text
+        text_frame = tk.Frame(window, bg='#f0f0f0')
+        text_frame.pack(fill='both', expand=True, padx=20, pady=(0, 20))
+        
+        explanation_text = scrolledtext.ScrolledText(
+            text_frame,
+            font=("Arial", 11),
+            wrap=tk.WORD,
+            padx=15,
+            pady=15,
+            relief='solid',
+            bd=1
+        )
+        explanation_text.pack(fill='both', expand=True)
+        
+        explanation_text.insert("1.0", explanation)
+        explanation_text.config(state='disabled')
+        
+        # Button frame
+        button_frame = tk.Frame(window, bg='#f0f0f0')
+        button_frame.pack(fill='x', pady=(0, 20))
+        
+        # Close button
+        tk.Button(
+            button_frame,
+            text="Close",
+            font=("Arial", 12),
+            bg='#95a5a6',
+            fg='white',
+            relief='flat',
+            padx=30,
+            pady=8,
+            command=window.destroy,
+            cursor='hand2'
+        ).pack()
+
+    def show_explanation_error(self, error_message):
+        """Show error when explanation generation fails"""
+        self.explain_button.config(state='normal', text='📝 View Detailed Explanation')
+        messagebox.showerror("Explanation Error", f"Failed to generate detailed explanation:\n\n{error_message}")
     
     def show_all_analyses(self):
         """Show all previous analyses"""
