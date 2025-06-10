@@ -6,10 +6,11 @@ This file acts as the connection logic to the database. Also stores the database
 
 from pymongo import MongoClient
 from datetime import datetime
+from typing import List, Dict  # Added missing import for type hints
 import config
 
 class DatabaseManager:
-    def __init__(self):
+    def __init__(self):  # Fixed the __init__ method name
         # DB Connection
         self.client = MongoClient(config.MONGODB_URI)
         self.db = self.client[config.DATABASE_NAME]
@@ -44,8 +45,6 @@ class DatabaseManager:
     def get_all_analyses(self):
         """Get all analyses"""
         return list(self.collection.find())
-
-
     
     def get_analysis_by(self, query={}, projection=None):
         """
