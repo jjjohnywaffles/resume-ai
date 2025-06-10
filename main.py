@@ -16,7 +16,7 @@ class ResumeAnalyzer:
         self.db_manager = DatabaseManager()
         self.pdf_reader = PDFReader()
     
-    def analyze_resume(self, name, resume_path, job_description_text):
+    def analyze_resume(self, name, resume_path, job_description_text, include_explanation=False):
         """Main function to analyze resume against job description"""
         print(f"Starting analysis for {name}...")
         
@@ -35,9 +35,17 @@ class ResumeAnalyzer:
         print("Analyzing job description...")
         job_requirements = self.ai_analyzer.extract_job_requirements(job_description_text)
         
-        # Step 4: Calculate match score
-        print("Calculating compatibility score...")
-        match_score = self.ai_analyzer.calculate_match_score(resume_data, job_requirements)
+        # Step 4: Calculate match score (with or without explanation)
+        if include_explanation:
+            print("Calculating compatibility score with detailed explanation...")
+            score_result = self.ai_analyzer.explain_match_score(resume_data, job_requirements)
+            match_score = score_result["score"]
+            explanation = score_result["explanation"]
+        else:
+            print("Calculating compatibility score...")
+            # This now internally calls explain_match_score() but only returns the score
+            match_score = self.ai_analyzer.calculate_match_score(resume_data, job_requirements)
+            explanation = None
         
         # Step 5: Save to database
         print("Saving to database...")
@@ -50,6 +58,10 @@ class ResumeAnalyzer:
             "job_requirements": job_requirements,
             "match_score": match_score
         }
+        
+        # Add explanation if requested
+        if explanation:
+            result["explanation"] = explanation
         
         print(f"Analysis complete! Match score: {match_score}/100")
         return result
