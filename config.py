@@ -1,7 +1,7 @@
-""" Author: Jonathan Hu
-    config.py
-    Stores the secret keys from the env file to allow the application to actually work
-    :^)
+""" 
+Author: Jonathan Hu
+config.py
+Stores the secret keys from the env file to allow the application to actually work
 """
 
 import os
