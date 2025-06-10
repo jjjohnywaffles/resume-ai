@@ -186,11 +186,6 @@ class AIAnalyzer:
         - Advanced degree when not required: +5 points
         Maximum bonus: +15 points
         
-        6. FINAL CONSTRAINTS:
-        - Minimum score: 15 (even worst candidates have some value)
-        - Maximum score: 95 (reserve 96+ for truly exceptional fits)
-        - Round to nearest whole number
-
         CALCULATION REQUIREMENTS:
         - Show your math step by step
         - Count each deduction/bonus precisely
