@@ -70,10 +70,11 @@ An AI-powered resume analysis system that provides intelligent matching between 
 ## How It Works
 - Upload your resume (PDF format)
 - Paste the job description text
+- Add the job title and company name
 - The system will:
--   Parse and format the resume content
--   Analyze the job description
--   Compare both using AI
--   Generate a compatibility score (1-100) and explanation for the score
--   Store all results in MongoDB
-- View and manage previous analyses through the MongoDB
+  -   Parse and format the resume content into json
+  -   Analyze the job description and returns key content in json
+  -   Compare both using AI
+  -   Generate a compatibility score (1-100) and explanation for the score
+  -   Store all results in MongoDB
+  - View and manage previous analyses through the MongoDB
