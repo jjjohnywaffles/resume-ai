@@ -16,7 +16,7 @@ class ResumeAnalyzerGUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Resume Analyzer")
-        self.root.geometry("900x700")
+        self.root.geometry("900x750")  # Increased height for new fields
         self.root.configure(bg='#f0f0f0')
         
         # Initialize analyzer as None first
@@ -84,6 +84,48 @@ class ResumeAnalyzerGUI:
         )
         self.name_entry.pack(fill='x')
         
+        # NEW: Job title and company in a horizontal layout
+        job_info_frame = tk.Frame(input_frame, bg='#f0f0f0')
+        job_info_frame.pack(fill='x', pady=(0, 15))
+        
+        # Job title (left side)
+        job_title_frame = tk.Frame(job_info_frame, bg='#f0f0f0')
+        job_title_frame.pack(side='left', fill='both', expand=True, padx=(0, 10))
+        
+        tk.Label(
+            job_title_frame, 
+            text="Job Title:", 
+            font=("Arial", 12, "bold"), 
+            bg='#f0f0f0'
+        ).pack(anchor='w', pady=(0, 5))
+        
+        self.job_title_entry = tk.Entry(
+            job_title_frame, 
+            font=("Arial", 12), 
+            relief='solid',
+            bd=1
+        )
+        self.job_title_entry.pack(fill='x')
+        
+        # Company (right side)
+        company_frame = tk.Frame(job_info_frame, bg='#f0f0f0')
+        company_frame.pack(side='left', fill='both', expand=True, padx=(10, 0))
+        
+        tk.Label(
+            company_frame, 
+            text="Company:", 
+            font=("Arial", 12, "bold"), 
+            bg='#f0f0f0'
+        ).pack(anchor='w', pady=(0, 5))
+        
+        self.company_entry = tk.Entry(
+            company_frame, 
+            font=("Arial", 12), 
+            relief='solid',
+            bd=1
+        )
+        self.company_entry.pack(fill='x')
+        
         # Resume upload section
         resume_frame = tk.Frame(input_frame, bg='#f0f0f0')
         resume_frame.pack(fill='x', pady=(0, 15))
@@ -138,7 +180,7 @@ class ResumeAnalyzerGUI:
             job_frame,
             font=("Arial", 11),
             wrap=tk.WORD,
-            height=12,
+            height=10,  # Reduced height slightly to accommodate new fields
             relief='solid',
             bd=1
         )
@@ -272,6 +314,8 @@ class ResumeAnalyzerGUI:
     def clear_all(self):
         """Clear all inputs and results"""
         self.name_entry.delete(0, tk.END)
+        self.job_title_entry.delete(0, tk.END)  # Clear job title
+        self.company_entry.delete(0, tk.END)    # Clear company
         self.job_text.delete("1.0", tk.END)
         self.add_placeholder(None)
         self.resume_path = None
@@ -287,6 +331,8 @@ class ResumeAnalyzerGUI:
     def start_analysis(self):
         """Start the analysis in a separate thread"""
         name = self.name_entry.get().strip()
+        job_title = self.job_title_entry.get().strip()  # Get job title
+        company = self.company_entry.get().strip()      # Get company
         
         # Get job description, handling placeholder
         if self.placeholder_active:
@@ -297,6 +343,14 @@ class ResumeAnalyzerGUI:
         # Validation
         if not name:
             messagebox.showerror("Missing Information", "Please enter the candidate's name")
+            return
+        
+        if not job_title:
+            messagebox.showerror("Missing Information", "Please enter the job title")
+            return
+        
+        if not company:
+            messagebox.showerror("Missing Information", "Please enter the company name")
             return
         
         if not self.resume_path:
@@ -325,12 +379,12 @@ class ResumeAnalyzerGUI:
         # Start analysis in separate thread
         thread = threading.Thread(
             target=self.run_analysis,
-            args=(name, self.resume_path, job_description)
+            args=(name, job_title, company, self.resume_path, job_description)
         )
         thread.daemon = True
         thread.start()
     
-    def run_analysis(self, name, resume_path, job_description):
+    def run_analysis(self, name, job_title, company, resume_path, job_description):
         """Run the analysis"""
         try:
             # Extract text from resume PDF
@@ -349,12 +403,17 @@ class ResumeAnalyzerGUI:
             match_score = explanation_result["score"]
             cached_explanation = explanation_result["explanation"]
             
-            # Save to database
-            self.analyzer.db_manager.save_analysis(name, resume_data, job_requirements, match_score)
+            # Save to database with new fields
+            self.analyzer.db_manager.save_analysis(
+                name, resume_data, job_requirements, match_score, 
+                cached_explanation, job_title, company
+            )
             
             # Build result with cached explanation
             result = {
                 "name": name,
+                "job_title": job_title,
+                "company": company,
                 "resume_data": resume_data,
                 "job_requirements": job_requirements,
                 "match_score": match_score,
@@ -447,8 +506,9 @@ class ResumeAnalyzerGUI:
         )
         resume_text.pack(fill='both', expand=True, padx=10, pady=10)
         
-        # Format resume content
-        resume_content = f"CANDIDATE: {result['name']}\n\n"
+        # Format resume content with job info
+        resume_content = f"CANDIDATE: {result['name']}\n"
+        resume_content += f"POSITION: {result['job_title']} at {result['company']}\n\n"
         resume_content += "🔧 EXTRACTED SKILLS:\n"
         for skill in result['resume_data'].get('skills', []):
             resume_content += f"  • {skill}\n"
@@ -505,7 +565,7 @@ class ResumeAnalyzerGUI:
         # Success message
         messagebox.showinfo(
             "Analysis Complete", 
-            f"Analysis completed successfully!\nMatch Score: {score}/100\n\nResults saved to database.\n\nClick 'View Detailed Explanation' to see the scoring breakdown."
+            f"Analysis completed successfully!\nCandidate: {result['name']}\nPosition: {result['job_title']} at {result['company']}\nMatch Score: {score}/100\n\nResults saved to database.\n\nClick 'View Detailed Explanation' to see the scoring breakdown."
         )
     
     def show_error(self, error_message):
@@ -579,9 +639,10 @@ class ResumeAnalyzerGUI:
             fg='#2c3e50'
         ).pack()
         
+        # Updated to show job title and company
         tk.Label(
             title_frame,
-            text=f"Analysis for: {self.current_result['name']}",
+            text=f"Analysis for: {self.current_result['name']} | {self.current_result['job_title']} at {self.current_result['company']}",
             font=("Arial", 12),
             bg='#f0f0f0',
             fg='#7f8c8d'
@@ -640,7 +701,7 @@ class ResumeAnalyzerGUI:
             # Create new window
             window = tk.Toplevel(self.root)
             window.title("Analysis History")
-            window.geometry("800x500")
+            window.geometry("1000x500")  # Increased width for new columns
             window.configure(bg='#f0f0f0')
             
             # Title
@@ -656,17 +717,21 @@ class ResumeAnalyzerGUI:
             tree_frame = tk.Frame(window, bg='#f0f0f0')
             tree_frame.pack(fill='both', expand=True, padx=20, pady=(0, 20))
             
-            # Create treeview
-            columns = ('Name', 'Score', 'Date')
+            # Create treeview with new columns
+            columns = ('Name', 'Job Title', 'Company', 'Score', 'Date')
             tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15)
             
             tree.heading('Name', text='Candidate Name')
+            tree.heading('Job Title', text='Job Title')
+            tree.heading('Company', text='Company')
             tree.heading('Score', text='Match Score')
             tree.heading('Date', text='Analysis Date')
             
-            tree.column('Name', width=250)
-            tree.column('Score', width=150)
-            tree.column('Date', width=200)
+            tree.column('Name', width=200)
+            tree.column('Job Title', width=200)
+            tree.column('Company', width=150)
+            tree.column('Score', width=100)
+            tree.column('Date', width=150)
             
             # Add scrollbar
             scrollbar = ttk.Scrollbar(tree_frame, orient='vertical', command=tree.yview)
@@ -676,8 +741,15 @@ class ResumeAnalyzerGUI:
             for analysis in sorted(analyses, key=lambda x: x.get('timestamp', ''), reverse=True):
                 date_str = analysis['timestamp'].strftime('%Y-%m-%d %H:%M') if 'timestamp' in analysis else 'Unknown'
                 score_display = f"{analysis['match_score']}/100"
+                
+                # Handle missing job_title and company fields (for backward compatibility)
+                job_title = analysis.get('job_title', 'N/A')
+                company = analysis.get('company', 'N/A')
+                
                 tree.insert('', 'end', values=(
                     analysis['name'],
+                    job_title,
+                    company,
                     score_display,
                     date_str
                 ))
