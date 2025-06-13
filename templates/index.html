@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Resume Analyzer</h1>
+    
+    <form id="analyzeForm" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="name">Candidate Name:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="job_title">Job Title:</label>
+            <input type="text" id="job_title" name="job_title" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="company">Company:</label>
+            <input type="text" id="company" name="company" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="resume">Resume (PDF):</label>
+            <input type="file" id="resume" name="resume" accept=".pdf" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="job_description">Job Description:</label>
+            <textarea id="job_description" name="job_description" placeholder="Paste the job description here..." required></textarea>
+        </div>
+        
+        <button type="submit" id="analyzeBtn">🔍 Analyze Resume</button>
+        <button type="button" id="clearBtn">🗑️ Clear All</button>
+        <button type="button" id="historyBtn">📊 View History</button>
+        <button type="button" id="explainBtn" style="display: none;">📝 View Detailed Explanation</button>
+    </form>
+    
+    <div class="loading">
+        <p>⏳ Analyzing resume and job description...</p>
+    </div>
+    
+    <div id="error" class="error"></div>
+    
+    <div id="results" class="results">
+        <h2>Analysis Results</h2>
+        <div id="resultContent"></div>
+    </div>
+</div>
+
+<!-- Explanation Modal -->
+<div id="explanationModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>📊 Compatibility Score Breakdown</h2>
+        <div id="explanationContent"></div>
+    </div>
+</div>
+
+<!-- History Modal -->
+<div id="historyModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Previous Resume Analyses</h2>
+        <div id="historyContent"></div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('analyzeForm');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const historyBtn = document.getElementById('historyBtn');
+    const explainBtn = document.getElementById('explainBtn');
+    const loading = document.querySelector('.loading');
+    const error = document.getElementById('error');
+    const results = document.getElementById('results');
+    const resultContent = document.getElementById('resultContent');
+    
+    // Modals
+    const explanationModal = document.getElementById('explanationModal');
+    const historyModal = document.getElementById('historyModal');
+    const explanationContent = document.getElementById('explanationContent');
+    const historyContent = document.getElementById('historyContent');
+    
+    // Close modal functionality
+    document.querySelectorAll('.close').forEach(closeBtn => {
+        closeBtn.onclick = function() {
+            explanationModal.style.display = 'none';
+            historyModal.style.display = 'none';
+        }
+    });
+    
+    window.onclick = function(event) {
+        if (event.target == explanationModal) {
+            explanationModal.style.display = 'none';
+        }
+        if (event.target == historyModal) {
+            historyModal.style.display = 'none';
+        }
+    }
+    
+    // Form submission
+    form.onsubmit = async function(e) {
+        e.preventDefault();
+        
+        // Hide previous results and errors
+        results.style.display = 'none';
+        error.textContent = '';
+        explainBtn.style.display = 'none';
+        
+        // Show loading
+        loading.style.display = 'block';
+        analyzeBtn.disabled = true;
+        analyzeBtn.textContent = '🔄 Analyzing...';
+        
+        const formData = new FormData(form);
+        
+        try {
+            const response = await fetch('/analyze', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                displayResults(data.result);
+                explainBtn.style.display = 'inline-block';
+            } else {
+                error.textContent = data.error;
+            }
+        } catch (err) {
+            error.textContent = 'Network error: ' + err.message;
+        } finally {
+            loading.style.display = 'none';
+            analyzeBtn.disabled = false;
+            analyzeBtn.textContent = '🔍 Analyze Resume';
+        }
+    };
+    
+    // Clear button
+    clearBtn.onclick = function() {
+        form.reset();
+        results.style.display = 'none';
+        error.textContent = '';
+        explainBtn.style.display = 'none';
+    };
+    
+    // Explanation button
+    explainBtn.onclick = async function() {
+        try {
+            const response = await fetch('/explanation');
+            const data = await response.json();
+            
+            if (data.success) {
+                explanationContent.innerHTML = `
+                    <p><strong>Analysis for:</strong> ${data.name} | ${data.job_title} at ${data.company}</p>
+                    <pre style="white-space: pre-wrap; font-family: Arial, sans-serif;">${data.explanation}</pre>
+                `;
+                explanationModal.style.display = 'block';
+            } else {
+                error.textContent = data.error;
+            }
+        } catch (err) {
+            error.textContent = 'Failed to load explanation: ' + err.message;
+        }
+    };
+    
+    // History button
+    historyBtn.onclick = async function() {
+        try {
+            const response = await fetch('/history');
+            const data = await response.json();
+            
+            if (data.success) {
+                if (data.analyses.length === 0) {
+                    historyContent.innerHTML = '<p>No previous analyses found.</p>';
+                } else {
+                    let tableHtml = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Candidate Name</th>
+                                    <th>Job Title</th>
+                                    <th>Company</th>
+                                    <th>Match Score</th>
+                                    <th>Analysis Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    data.analyses.forEach(analysis => {
+                        tableHtml += `
+                            <tr>
+                                <td>${analysis.name}</td>
+                                <td>${analysis.job_title}</td>
+                                <td>${analysis.company}</td>
+                                <td>${analysis.match_score}/100</td>
+                                <td>${analysis.timestamp}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableHtml += '</tbody></table>';
+                    historyContent.innerHTML = tableHtml;
+                }
+                historyModal.style.display = 'block';
+            } else {
+                error.textContent = data.error;
+            }
+        } catch (err) {
+            error.textContent = 'Failed to load history: ' + err.message;
+        }
+    };
+    
+    function displayResults(result) {
+        let scoreClass = 'poor';
+        let scoreText = 'Needs Improvement';
+        
+        if (result.match_score >= 80) {
+            scoreClass = 'excellent';
+            scoreText = 'Excellent Match';
+        } else if (result.match_score >= 60) {
+            scoreClass = 'good';
+            scoreText = 'Good Match';
+        }
+        
+        let html = `
+            <div class="score ${scoreClass}">
+                Compatibility Score: ${result.match_score}/100 (${scoreText})
+            </div>
+            
+            <div class="section">
+                <h3>📄 Resume Analysis</h3>
+                <p><strong>Candidate:</strong> ${result.name}</p>
+                <p><strong>Position:</strong> ${result.job_title} at ${result.company}</p>
+                
+                <h4>🔧 Extracted Skills:</h4>
+                <ul>
+                    ${result.resume_data.skills.map(skill => `<li>${skill}</li>`).join('')}
+                </ul>
+                
+                <h4>💼 Work Experience:</h4>
+                <ul>
+                    ${result.resume_data.experience.map(exp => 
+                        `<li>${exp.role} at ${exp.company} (${exp.duration})</li>`
+                    ).join('')}
+                </ul>
+                
+                <h4>🎓 Education:</h4>
+                <ul>
+                    ${result.resume_data.education.map(edu => 
+                        `<li>${edu.degree} from ${edu.institution} (${edu.year})</li>`
+                    ).join('')}
+                </ul>
+            </div>
+            
+            <div class="section">
+                <h3>📋 Job Requirements</h3>
+                
+                <h4>✅ Required Skills:</h4>
+                <ul>
+                    ${result.job_requirements.required_skills.map(skill => `<li>${skill}</li>`).join('')}
+                </ul>
+                
+                <h4>⭐ Preferred Skills:</h4>
+                <ul>
+                    ${result.job_requirements.preferred_skills.map(skill => `<li>${skill}</li>`).join('')}
+                </ul>
+                
+                <p><strong>⏱️ Experience Required:</strong> ${result.job_requirements.experience_required}</p>
+                <p><strong>🎓 Education Required:</strong> ${result.job_requirements.education_required}</p>
+                
+                <h4>📝 Key Responsibilities:</h4>
+                <ul>
+                    ${result.job_requirements.responsibilities.map(resp => `<li>${resp}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+        
+        resultContent.innerHTML = html;
+        results.style.display = 'block';
+    }
+});
+</script>
+{% endblock %}
