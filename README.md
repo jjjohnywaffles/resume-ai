@@ -101,7 +101,6 @@ An AI-powered resume analysis system that provides intelligent matching between 
 1. **Clone the repository**
    ```bash
    git clone https://github.com/yourusername/ResumeMatchAI.git
-   cd ResumeMatchAI
    ```
 
 2. **Install dependencies**
