@@ -114,6 +114,7 @@ An AI-powered resume analysis system that provides intelligent matching between 
    OPENAI_API_KEY=your-openai-api-key
    MONGODB_URI=your-mongodb-connection-string
    ```
+   If you are new and just starting, contact Jonathan Hu for a copy of the .env file
 
 4. **Run the web application**
    ```bash
@@ -158,7 +159,7 @@ An AI-powered resume analysis system that provides intelligent matching between 
    - Base score: 100 points
    - Deductions for missing requirements
    - Bonuses for preferred qualifications
-   - Final score normalized to 15-95 range
+   - Final score normalized to 0-100 range
 4. **Data Storage**: All results saved to MongoDB with timestamps
 5. **Result Display**: Web interface shows scores, breakdowns, and explanations
 
