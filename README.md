@@ -35,7 +35,7 @@ An AI-powered resume analysis system that provides intelligent matching between 
   - Improved prompt engineering for consistent scoring
   - Normalization of scores across different wording variations
 
-- **Comprehensive Reporting**
+- **Reporting**
   - Enhanced detailed explanations for compatibility scores
   - Actionable improvement suggestions:
     - For scores <50: Indicates poor fit with recommendations against applying
@@ -57,9 +57,9 @@ An AI-powered resume analysis system that provides intelligent matching between 
   - Role-based access control
 
 - **Platform Enhancements**
-  - Cloud hosting deployment (AWS/Heroku/Azure)
-  - Enhanced UI/UX design with modern framework
-  - RESTful API for third-party integrations
+  - Cloud hosting deployment through STEM Up
+  - Update UI/UX 
+  - Connection with STEM Up docker
   - Batch processing capabilities
   - Export functionality (PDF reports, CSV data)
 
@@ -81,12 +81,12 @@ An AI-powered resume analysis system that provides intelligent matching between 
 | `pdf_reader.py`      | PDF parsing functionality            |
 | `requirements.txt`   | Python dependencies                  |
 
-### Legacy Desktop Files (Optional)
+### Legacy Desktop Files (Optional for Testing)
 | File                 | Description                          |
 |----------------------|--------------------------------------|
-| `gui.py`             | Tkinter graphical interface (deprecated) |
-| `main.py`            | CLI application logic (optional)     |
-| `run_gui.py`         | GUI entry point (deprecated)         |
+| `gui.py`             | Tkinter graphical interface (deprecated, working) |
+| `main.py`            | CLI application logic (optional, working)     |
+| `run_gui.py`         | GUI entry point (deprecated, working)         |
 
 
 ## Installation & Setup
@@ -177,3 +177,4 @@ An AI-powered resume analysis system that provides intelligent matching between 
 - Input sanitization for web forms
 - Session-based temporary storage
 - No user authentication (currently)
+- Encryption/hash for user passwords when implemented
