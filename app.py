@@ -1,6 +1,18 @@
 """
-Flask-based Resume Analyzer Application
-Author: Jonathan Hu (modified for Flask)
+File: app.py
+Author: Jonathan Hu
+Date Created: 6/12/25
+Last Modified: 6/12/25
+Description: Main Flask application server for the Resume Analyzer web application.
+             Handles HTTP routes, file uploads, and coordinates between the AI analyzer,
+             database, and PDF reader components to provide resume-job matching analysis.
+Dependencies: Flask, werkzeug, ai_analyzer, database, pdf_reader, config
+Routes:
+    - GET  /           : Main page with analysis form
+    - POST /analyze    : Process resume and job description
+    - GET  /explanation: Retrieve detailed scoring explanation
+    - GET  /history    : View all previous analyses
+    - GET  /compare    : Compare candidates for specific positions
 """
 
 from flask import Flask, render_template, request, jsonify, session

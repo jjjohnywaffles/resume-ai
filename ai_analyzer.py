@@ -1,10 +1,18 @@
-""" 
+"""
+File: ai_analyzer.py
 Author: Jonathan Hu
-ai_analyzer.py
-This file takes the user's input from both the name, resume and job description and sends it to an ai model.
-The ai model then processes both the resume and job description to return json objects.
-The json objects are then sent back to the ai model for a compatibility comparison.
-The compatibility score is based on a specific criteria designed to return an accurate representation of a resume to the job description.
+Date Created: 6/12/25
+Last Modified: 6/12/25
+Description: AI analysis module that interfaces with OpenAI's GPT model to extract
+             structured data from resumes and job descriptions, then calculates
+             compatibility scores with detailed explanations.
+Classes:
+    - AIAnalyzer: Main class for AI-powered resume and job analysis
+Methods:
+    - extract_resume_data(): Parse resume text into structured JSON
+    - extract_job_requirements(): Parse job description into requirements
+    - explain_match_score(): Generate detailed compatibility analysis
+    - calculate_match_score(): Calculate numerical compatibility score
 """
 
 import json
