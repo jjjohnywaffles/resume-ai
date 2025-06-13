@@ -1,9 +1,12 @@
-""" 
-Author: Jonathan Hu + AI
-gui.py
-This file is the main code behind the gui of the application.
-Due to my inability to design or be artistically creative, I had an AI help me out.
-This is otherwise just a basic gui that allows the user to upload their resume and input a job description for a comparison.
+"""
+File: gui.py
+Author: Jonathan Hu
+Date Created: 6/12/25
+Last Modified: 6/12/25
+Description: Tkinter-based desktop GUI for the Resume Analyzer.
+             Note: This file is replaced by the Flask web interface and is
+             no longer needed for the web application version.
+Status: DEPRECATED - Use Flask app.py instead
 """
 
 import tkinter as tk

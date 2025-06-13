@@ -1,7 +1,15 @@
-""" 
+"""
+File: pdf_reader.py
 Author: Jonathan Hu
-pdf_reader.py
-The main logic for parsing through the pdf file. These functions are invoked before the resume is sent to the ai.
+Date Created: 6/12/25
+Last Modified: 6/12/25
+Description: PDF processing module that extracts text content from resume PDF files.
+             Handles both file path and byte stream inputs for flexibility.
+Classes:
+    - PDFReader: Utility class for PDF text extraction
+Methods:
+    - extract_text_from_pdf(): Extract text from PDF file path
+    - extract_text_from_pdf_bytes(): Extract text from PDF byte stream
 """
 
 import PyPDF2

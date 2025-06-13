@@ -1,9 +1,15 @@
 """
+File: main.py
 Author: Jonathan Hu
-main.py
-The main application logic for the analyzer. Initializes all functions in order so it returns properly.
+Date Created: 6/12/25
+Last Modified: 6/12/25
+Description: Command line interface for the Resume Analyzer. Coordinates all
+             components to provide resume analysis functionality using terminal.
+             Note: This file is optional when using the Flask web interface.
+                   If testing local, use run_gui.py, if web, run app.py
+Classes:
+    - ResumeAnalyzer: Main class for all operations
 """
-
 
 from ai_analyzer import AIAnalyzer
 from database import DatabaseManager

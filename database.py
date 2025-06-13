@@ -1,7 +1,18 @@
-""" 
+"""
+File: database.py
 Author: Jonathan Hu
-database.py
-This file acts as the connection logic to the database. Also stores the database schema.
+Date Created: 6/12/25
+Last Modified: 6/12/25
+Description: Database management module for MongoDB operations. Handles all
+             database connections, queries, and data persistence for resume analyses.
+Classes:
+    - DatabaseManager: MongoDB interface for storing and retrieving analyses
+Methods:
+    - save_analysis(): Store analysis results with metadata
+    - get_analysis_by_name(): Retrieve analysis by candidate name
+    - get_all_analyses(): Fetch all stored analyses
+    - compare_scores_by_position(): Compare candidates for same position
+    - Various query methods for filtering by company, job title, etc.
 """
 
 from pymongo import MongoClient
