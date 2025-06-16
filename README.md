@@ -1,6 +1,8 @@
 # ResumeMatchAI
 **Authors:** Jonathan Hu, Tianjiao Dong
 
+**Last Update:** 6/15/25
+
 An AI-powered resume analysis system that provides intelligent matching between candidates and job opportunities, with detailed compatibility insights and data management capabilities. It analyzes resumes against job descriptions, assigns compatibility scores (1-100), and stores all data in MongoDB for persistence and retrieval.
 
 ## Current Functionality
