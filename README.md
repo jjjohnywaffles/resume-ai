@@ -58,8 +58,6 @@ An AI-powered resume analysis system that provides intelligent matching between 
 
 ## Project Structure
 
-The codebase uses a **minimal packages architecture** for improved maintainability and clarity:
-
 ```
 resume-analyzer/
 ├── run_web.py              # Web application entry point
