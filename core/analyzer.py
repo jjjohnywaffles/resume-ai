@@ -17,16 +17,19 @@ Methods:
 
 import json
 import openai
-import config
+import re
+from config import get_config
 
-# Analyzer class, extracts information and formats it into json. 
-class AIAnalyzer:
+config = get_config()
+
+class ResumeAnalyzer:
+    """Main resume analysis class"""
+    
     def __init__(self):
         if not config.OPENAI_API_KEY:
             raise ValueError("OpenAI API key not found. Please check your .env file.")
         openai.api_key = config.OPENAI_API_KEY
     
-    # Format resume
     def extract_resume_data(self, resume_text):
         """Extract skills and experience from resume"""
         prompt = f"""
@@ -59,42 +62,25 @@ class AIAnalyzer:
         """
         
         try:
-            print("🔍 MAKING OPENAI API CALL - Resume Analysis...")
+            print("MAKING OPENAI API CALL - Resume Analysis...")
             response = openai.ChatCompletion.create(
-
-                # USE MINI MODEL FOR TEST PLS
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=1500
             )
             
-            print("📥 RAW OPENAI RESPONSE (Resume):")
-            print("=" * 60)
-            print(f"Full Response Object: {response}")
-            print("=" * 60)
-            
             content = response.choices[0].message.content
-            print("📄 EXTRACTED CONTENT:")
-            print("=" * 60)
-            print(content)
-            print("=" * 60)
-            
             parsed_json = json.loads(content)
-            print("✅ JSON PARSING SUCCESSFUL")
-            print("📊 PARSED JSON:")
-            print("=" * 60)
-            print(json.dumps(parsed_json, indent=2))
-            print("=" * 60)
+            print("JSON PARSING SUCCESSFUL")
             
             return parsed_json
             
         except json.JSONDecodeError as e:
-            print(f"❌ JSON PARSING FAILED: {e}")
-            print(f"📄 Raw content that failed to parse: {content}")
+            print(f"JSON PARSING FAILED: {e}")
             return {"error": "Failed to parse resume data"}
         except Exception as e:
-            print(f"❌ API CALL FAILED: {e}")
+            print(f"API CALL FAILED: {e}")
             return {"error": f"API call failed: {str(e)}"}
     
     def extract_job_requirements(self, job_description):
@@ -118,7 +104,7 @@ class AIAnalyzer:
         """
         
         try:
-            print("🔍 MAKING OPENAI API CALL - Job Analysis...")
+            print("MAKING OPENAI API CALL - Job Analysis...")
             response = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
@@ -126,36 +112,21 @@ class AIAnalyzer:
                 max_tokens=1500
             )
             
-            print("📥 RAW OPENAI RESPONSE (Job):")
-            print("=" * 60)
-            print(f"Full Response Object: {response}")
-            print("=" * 60)
-            
             content = response.choices[0].message.content
-            print("📄 EXTRACTED CONTENT:")
-            print("=" * 60)
-            print(content)
-            print("=" * 60)
-            
             parsed_json = json.loads(content)
-            print("✅ JSON PARSING SUCCESSFUL")
-            print("📊 PARSED JSON:")
-            print("=" * 60)
-            print(json.dumps(parsed_json, indent=2))
-            print("=" * 60)
+            print("JSON PARSING SUCCESSFUL")
             
             return parsed_json
             
         except json.JSONDecodeError as e:
             print(f"JSON PARSING FAILED: {e}")
-            print(f"Raw content that failed to parse: {content}")
             return {"error": "Failed to parse job requirements"}
         except Exception as e:
             print(f"API CALL FAILED: {e}")
             return {"error": f"API call failed: {str(e)}"}
     
     def explain_match_score(self, resume_data, job_requirements):
-        """Calculate compatibility score with detailed explanation - CONSISTENT SCORING VERSION"""
+        """Calculate compatibility score with detailed explanation"""
         prompt = f"""
         You are a precise HR scoring system. Calculate a compatibility score from 1-100 using EXACTLY the formula below.
         Be mathematically consistent - the same inputs should always produce the same score.
@@ -193,69 +164,10 @@ class AIAnalyzer:
         - Exceeds experience requirement significantly: +5 points
         - Advanced degree when not required: +5 points
         Maximum bonus: +15 points
-        
-        CALCULATION REQUIREMENTS:
-        - Show your math step by step
-        - Count each deduction/bonus precisely
-        - Apply the constraints at the end
-        - Be consistent: same analysis = same score every time
 
-        FORMAT YOUR RESPONSE EXACTLY AS:
+        FORMAT YOUR RESPONSE WITH:
 
-        ## COMPATIBILITY ANALYSIS
-
-        ### 1. BASE SCORE
-        Starting score: 100 points
-
-        ### 2. REQUIRED SKILLS ANALYSIS (Mathematical Breakdown)
-        Required skills from job: [list each one]
-        
-        Skill-by-skill evaluation:
-        [For each required skill, state: SKILL NAME - STATUS (Fully/Partially/Not Satisfied) - DEDUCTION]
-        
-        Skills calculation:
-        - Fully satisfied: [count] × 0 = 0 points
-        - Partially satisfied: [count] × -7 = -[total] points  
-        - Not satisfied: [count] × -15 = -[total] points
-        Total skills deduction: -[sum] points (capped at -45)
-
-        ### 3. EXPERIENCE ANALYSIS (Mathematical Breakdown)
-        Required: [state requirement]
-        Candidate has: [state experience]
-        Gap analysis: [percentage of requirement met]
-        Relevance: [relevant/somewhat relevant/unrelated]
-        
-        Experience calculation:
-        - Experience gap deduction: -[amount] points
-        - Relevance deduction: -[amount] points  
-        Total experience deduction: -[sum] points (capped at -45)
-
-        ### 4. EDUCATION ANALYSIS (Mathematical Breakdown)
-        Required: [state requirement]
-        Candidate has: [state education]
-        Match level: [exact/related/unrelated/missing]
-        
-        Education deduction: -[amount] points (capped at -20)
-
-        ### 5. BONUS CALCULATION (Mathematical Breakdown)
-        Preferred skills matched: [list] = [count] × 3 = +[total] points
-        Experience bonus: [yes/no] = +[amount] points
-        Education bonus: [yes/no] = +[amount] points
-        Total bonus: +[sum] points (capped at +15)
-
-        ### 6. FINAL CALCULATION
-        Base score: 100
-        Skills deduction: -[X]
-        Experience deduction: -[Y]  
-        Education deduction: -[Z]
-        Bonus points: +[A]
-        Raw total: [100-X-Y-Z+A]
-        Applied constraints: [15-95 range]
-        
         **FINAL COMPATIBILITY SCORE: [final_number]/100**
-
-        ### CONSISTENCY CHECK
-        Verify: Base(100) - Skills([X]) - Experience([Y]) - Education([Z]) + Bonus([A]) = [final_number]
 
         Resume Data:
         {json.dumps(resume_data, indent=2)}
@@ -265,47 +177,31 @@ class AIAnalyzer:
         """
         
         try:
-            print("🔍 MAKING OPENAI API CALL - Consistent Score Calculation...")
+            print("MAKING OPENAI API CALL - 'Consistent' Score Calculation lolxd...")
             response = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are a precise mathematical scoring system. Always follow the exact formula provided. Be consistent - identical inputs must produce identical outputs. Show all mathematical calculations step by step."
+                        "content": "You are a precise mathematical scoring system. Always follow the exact formula provided. Be consistent - identical inputs must produce identical outputs."
                     },
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.0,  # CRITICAL: Set to 0 for maximum consistency
-                max_tokens=2500,
-                top_p=1.0,        # Use default top_p for consistency
-                frequency_penalty=0.0,  # No penalties that could cause variation
-                presence_penalty=0.0
+                temperature=0.0,
+                max_tokens=2500
             )
             
-            print("📥 RAW OPENAI RESPONSE (Consistent Analysis):")
-            print("=" * 60)
-            print(f"Full Response Object: {response}")
-            print("=" * 60)
-            
             content = response.choices[0].message.content
-            print("📄 EXTRACTED CONTENT:")
-            print("=" * 60)
-            print(content)
-            print("=" * 60)
             
-            # Extract the final score more reliably
-            import re
-            
-            # Primary extraction method
-            score_match = re.search(r'\*\*FINAL COMPATIBILITY SCORE: (\d+)/100\*\*', content)
+            # Extract the final score
+            score_match = re.search(r'FINAL COMPATIBILITY SCORE: (\d+)/100', content)
             if score_match:
                 final_score = int(score_match.group(1))
             else:
-                # Fallback extraction methods
+                # Fallback patterns
                 score_patterns = [
-                    r'FINAL COMPATIBILITY SCORE: (\d+)',
                     r'Final score: (\d+)',
-                    r'Applied constraints: (\d+)',
+                    r'Score: (\d+)',
                     r'(\d+)/100'
                 ]
                 
@@ -317,14 +213,13 @@ class AIAnalyzer:
                         break
                 
                 if final_score is None:
-                    print("⚠️ WARNING: Could not extract score, using fallback calculation")
-                    # Emergency fallback: basic calculation from content
+                    print("WARNING: Could not extract score, using fallback calculation")
                     final_score = 50
             
             # Apply consistency constraints
             final_score = max(15, min(95, final_score))
             
-            print(f"✅ EXTRACTED FINAL SCORE: {final_score}")
+            print(f"EXTRACTED FINAL SCORE: {final_score}")
             
             return {
                 "explanation": content,
@@ -332,21 +227,19 @@ class AIAnalyzer:
             }
             
         except Exception as e:
-            print(f"❌ API CALL FAILED: {e}")
+            print(f"API CALL FAILED: {e}")
             return {
                 "explanation": "Failed to generate detailed explanation",
                 "score": 0,
                 "error": f"API call failed: {str(e)}"
             }
+
     def calculate_match_score(self, resume_data, job_requirements):
-        """Calculate compatibility score between resume and job - WRAPPER FUNCTION"""
-        print("🔍 CALCULATING MATCH SCORE (using detailed explanation method)...")
+        """Calculate compatibility score between resume and job"""
+        print("CALCULATING MATCH SCORE (using detailed explanation method)...")
         
-        # Call the detailed explanation function
         result = self.explain_match_score(resume_data, job_requirements)
-        
-        # Extract just the score
         score = result.get("score", 0)
         
-        print(f"✅ FINAL SCORE: {score}")
+        print(f"FINAL SCORE: {score}")
         return score

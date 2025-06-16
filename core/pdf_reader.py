@@ -2,7 +2,7 @@
 File: pdf_reader.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/12/25
+Last Modified: 6/15/25
 Description: PDF processing module that extracts text content from resume PDF files.
              Handles both file path and byte stream inputs for flexibility.
 Classes:
@@ -16,6 +16,8 @@ import PyPDF2
 import io
 
 class PDFReader:
+    """PDF text extraction utility"""
+    
     @staticmethod
     def extract_text_from_pdf(pdf_file_path):
         """Extract text from PDF file"""
