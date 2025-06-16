@@ -2,7 +2,7 @@
 File: ai_analyzer.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/12/25
+Last Modified: 6/16/25 (Fixed explanation feature)
 Description: AI analysis module that interfaces with OpenAI's GPT model to extract
              structured data from resumes and job descriptions, then calculates
              compatibility scores with detailed explanations.
@@ -13,6 +13,7 @@ Methods:
     - extract_job_requirements(): Parse job description into requirements
     - explain_match_score(): Generate detailed compatibility analysis
     - calculate_match_score(): Calculate numerical compatibility score
+    - get_detailed_analysis(): Get both score and explanation
 """
 
 import json
@@ -165,8 +166,30 @@ class ResumeAnalyzer:
         - Advanced degree when not required: +5 points
         Maximum bonus: +15 points
 
-        FORMAT YOUR RESPONSE WITH:
+        FORMAT YOUR RESPONSE WITH DETAILED BREAKDOWN:
 
+        **SCORING BREAKDOWN:**
+
+        **BASE SCORE:** 100 points
+
+        **REQUIRED SKILLS ANALYSIS:**
+        [For each required skill, explain whether it's fully satisfied, partially satisfied, or not satisfied, and the points deducted]
+
+        **EXPERIENCE ANALYSIS:**
+        [Compare candidate's experience to requirements and explain deductions]
+
+        **EDUCATION ANALYSIS:**
+        [Compare candidate's education to requirements and explain deductions]
+
+        **BONUS POINTS:**
+        [List any bonus points earned and why]
+
+        **CALCULATION:**
+        Base Score: 100
+        Skills Deductions: -X
+        Experience Deductions: -Y
+        Education Deductions: -Z
+        Bonus Points: +A
         **FINAL COMPATIBILITY SCORE: [final_number]/100**
 
         Resume Data:
@@ -177,18 +200,18 @@ class ResumeAnalyzer:
         """
         
         try:
-            print("MAKING OPENAI API CALL - 'Consistent' Score Calculation lolxd...")
+            print("MAKING OPENAI API CALL - Detailed Score Calculation...")
             response = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are a precise mathematical scoring system. Always follow the exact formula provided. Be consistent - identical inputs must produce identical outputs."
+                        "content": "You are a precise mathematical scoring system. Always follow the exact formula provided. Be consistent - identical inputs must produce identical outputs. Provide detailed breakdowns showing your work."
                     },
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.0,
-                max_tokens=2500
+                max_tokens=3000
             )
             
             content = response.choices[0].message.content
@@ -235,11 +258,108 @@ class ResumeAnalyzer:
             }
 
     def calculate_match_score(self, resume_data, job_requirements):
-        """Calculate compatibility score between resume and job"""
-        print("CALCULATING MATCH SCORE (using detailed explanation method)...")
+        """Calculate compatibility score between resume and job (score only)"""
+        print("CALCULATING MATCH SCORE (score only)...")
         
         result = self.explain_match_score(resume_data, job_requirements)
         score = result.get("score", 0)
         
         print(f"FINAL SCORE: {score}")
         return score
+    
+    def get_detailed_analysis(self, resume_data, job_requirements):
+        """Get both compatibility score and detailed explanation"""
+        print("GENERATING DETAILED ANALYSIS...")
+        
+        result = self.explain_match_score(resume_data, job_requirements)
+        
+        if "error" in result:
+            print(f"ERROR: {result['error']}")
+            return {
+                "score": 0,
+                "explanation": "Failed to generate analysis due to API error",
+                "error": result["error"]
+            }
+        
+        print(f"ANALYSIS COMPLETE - Score: {result['score']}")
+        return {
+            "score": result["score"],
+            "explanation": result["explanation"],
+            "breakdown": self._parse_explanation_breakdown(result["explanation"])
+        }
+    
+    def _parse_explanation_breakdown(self, explanation):
+        """Parse the explanation text to extract key components"""
+        try:
+            breakdown = {
+                "base_score": 100,
+                "skills_analysis": "",
+                "experience_analysis": "",
+                "education_analysis": "",
+                "bonus_points": "",
+                "final_calculation": ""
+            }
+            
+            # Extract sections using regex
+            sections = {
+                "skills_analysis": r"REQUIRED SKILLS ANALYSIS:(.*?)(?=\*\*EXPERIENCE ANALYSIS:|$)",
+                "experience_analysis": r"EXPERIENCE ANALYSIS:(.*?)(?=\*\*EDUCATION ANALYSIS:|$)",
+                "education_analysis": r"EDUCATION ANALYSIS:(.*?)(?=\*\*BONUS POINTS:|$)",
+                "bonus_points": r"BONUS POINTS:(.*?)(?=\*\*CALCULATION:|$)",
+                "final_calculation": r"CALCULATION:(.*?)(?=\*\*FINAL COMPATIBILITY SCORE:|$)"
+            }
+            
+            for key, pattern in sections.items():
+                match = re.search(pattern, explanation, re.DOTALL | re.IGNORECASE)
+                if match:
+                    breakdown[key] = match.group(1).strip()
+            
+            return breakdown
+            
+        except Exception as e:
+            print(f"Error parsing breakdown: {e}")
+            return {"error": "Could not parse explanation breakdown"}
+
+    # USAGE EXAMPLES:
+    
+    def analyze_resume_job_match(self, resume_text, job_description):
+        """Complete analysis workflow - returns both score and explanation"""
+        print("STARTING COMPLETE ANALYSIS WORKFLOW...")
+        
+        # Extract data
+        resume_data = self.extract_resume_data(resume_text)
+        if "error" in resume_data:
+            return {"error": "Failed to extract resume data", "details": resume_data}
+        
+        job_requirements = self.extract_job_requirements(job_description)
+        if "error" in job_requirements:
+            return {"error": "Failed to extract job requirements", "details": job_requirements}
+        
+        # Get detailed analysis
+        analysis = self.get_detailed_analysis(resume_data, job_requirements)
+        
+        return {
+            "resume_data": resume_data,
+            "job_requirements": job_requirements,
+            "compatibility_score": analysis["score"],
+            "detailed_explanation": analysis["explanation"],
+            "breakdown": analysis.get("breakdown", {}),
+            "error": analysis.get("error")
+        }
+
+
+# Example usage:
+if __name__ == "__main__":
+    analyzer = ResumeAnalyzer()
+    
+    # For just the score:
+    # score = analyzer.calculate_match_score(resume_data, job_requirements)
+    
+    # For detailed analysis:
+    # detailed_result = analyzer.get_detailed_analysis(resume_data, job_requirements)
+    # print(f"Score: {detailed_result['score']}")
+    # print(f"Explanation: {detailed_result['explanation']}")
+    
+    # For complete workflow:
+    # full_analysis = analyzer.analyze_resume_job_match(resume_text, job_description)
+    pass
