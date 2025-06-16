@@ -69,7 +69,7 @@ resume-analyzer/
 ├── .env                    # Environment variables (create from template)
 ├── .gitignore             # Git ignore rules
 │
-├── core/                   # Business Logic (no __init__.py needed)
+├── core/                   # Business Logic
 │   ├── analyzer.py         # AI analysis and scoring logic
 │   ├── pdf_reader.py       # PDF text extraction
 │   └── database.py         # MongoDB operations
