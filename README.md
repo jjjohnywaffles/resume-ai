@@ -86,13 +86,6 @@ resume-analyzer/
     └── index.html         # Main analysis form and results
 ```
 
-### Architecture Benefits
-- **No Package Complexity**: No `__init__.py` files or `__pycache__` clutter
-- **Clear Organization**: Business logic separated from interfaces
-- **Simple Imports**: Direct imports like `from core.analyzer import ResumeAnalyzer`
-- **Easy Navigation**: Obvious file purposes and locations
-- **Future-Friendly**: Easy to add new features in appropriate modules
-
 ## Installation & Setup
 
 ### Prerequisites
