@@ -13,7 +13,6 @@ Methods:
     - get_all_analyses(): Fetch all stored analyses
     - compare_scores_by_position(): Compare candidates for same position
     - Various query methods for filtering by company, job title, etc.
-    
 """
 
 from pymongo import MongoClient
