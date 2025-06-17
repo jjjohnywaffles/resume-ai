@@ -14,7 +14,6 @@ Methods:
     - compare_scores_by_position(): Compare candidates for same position
     - Various query methods for filtering by company, job title, etc.
 """
-
 from pymongo import MongoClient
 from datetime import datetime
 from typing import List, Dict
