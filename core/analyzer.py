@@ -2,7 +2,7 @@
 File: analyzer.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/17/25 (Added concurrent processing for speed optimization)
+Last Modified: 6/18/25 (Added concurrent processing for speed optimization)
 Description: AI analysis module that interfaces with OpenAI's GPT model to extract
              structured data from resumes and job descriptions, then calculates
              compatibility scores with detailed explanations. Now uses concurrent

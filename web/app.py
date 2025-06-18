@@ -2,7 +2,7 @@
 File: app.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/15/25
+Last Modified: 6/18/25
 Description: Main Flask application server for the Resume Analyzer web application.
              Handles HTTP routes, file uploads, and coordinates between the AI analyzer,
              database, and PDF reader components to provide resume-job matching analysis.
@@ -110,14 +110,129 @@ def create_app():
                         'error': resume_text
                     }), 400
                 
-                # Extract structured data
-                resume_data = ai_analyzer.extract_resume_data(resume_text)
-                job_requirements = ai_analyzer.extract_job_requirements(job_description)
+                # UPDATED: Use concurrent extraction for speed improvement
+                extraction_result = ai_analyzer.extract_data_concurrent(resume_text, job_description)
+                
+                # Check for extraction errors
+                if "error" in extraction_result:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Data extraction failed: {extraction_result["error"]}'
+                    }), 500
+                
+                # Extract the structured data from concurrent result
+                resume_data = extraction_result["resume_data"]
+                job_requirements = extraction_result["job_requirements"]
                 
                 # Get detailed explanation and score
                 explanation_result = ai_analyzer.explain_match_score(resume_data, job_requirements)
                 match_score = explanation_result["score"]
                 explanation = explanation_result["explanation"]
+                
+                # Save to database
+                db_manager.save_analysis(
+                    name, resume_data, job_requirements, match_score,
+                    explanation, job_title, company
+                )
+                
+                # Store in session for explanation view
+                session['last_analysis'] = {
+                    'name': name,
+                    'job_title': job_title,
+                    'company': company,
+                    'explanation': explanation
+                }
+                
+                return jsonify({
+                    'success': True,
+                    'result': {
+                        'name': name,
+                        'job_title': job_title,
+                        'company': company,
+                        'match_score': match_score,
+                        'resume_data': resume_data,
+                        'job_requirements': job_requirements
+                    }
+                })
+                
+            finally:
+                # Clean up temporary file
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                    
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Analysis failed: {str(e)}'
+            }), 500
+    
+    @app.route('/analyze_fast', methods=['POST'])
+    def analyze_fast():
+        """Handle resume analysis using the new optimized method"""
+        if not all([ai_analyzer, db_manager, pdf_reader]):
+            return jsonify({
+                'success': False,
+                'error': 'System not properly initialized. Please check configuration.'
+            }), 500
+        
+        try:
+            # Get form data
+            name = request.form.get('name', '').strip()
+            job_title = request.form.get('job_title', '').strip()
+            company = request.form.get('company', '').strip()
+            job_description = request.form.get('job_description', '').strip()
+            
+            # Validate inputs
+            if not all([name, job_title, company, job_description]):
+                return jsonify({
+                    'success': False,
+                    'error': 'Please fill in all required fields'
+                }), 400
+            
+            # Handle file upload
+            if 'resume' not in request.files:
+                return jsonify({
+                    'success': False,
+                    'error': 'No resume file uploaded'
+                }), 400
+            
+            file = request.files['resume']
+            if file.filename == '' or not file.filename.lower().endswith('.pdf'):
+                return jsonify({
+                    'success': False,
+                    'error': 'Please upload a PDF file'
+                }), 400
+            
+            # Save uploaded file temporarily
+            filename = secure_filename(file.filename)
+            temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(temp_path)
+            
+            try:
+                # Extract text from resume
+                resume_text = pdf_reader.extract_text_from_pdf(temp_path)
+                
+                if resume_text.startswith("Error"):
+                    return jsonify({
+                        'success': False,
+                        'error': resume_text
+                    }), 400
+                
+                # NEW: Use the complete fast analysis workflow
+                analysis_result = ai_analyzer.analyze_resume_job_match_fast(resume_text, job_description)
+                
+                # Check for analysis errors
+                if "error" in analysis_result:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Analysis failed: {analysis_result["error"]}'
+                    }), 500
+                
+                # Extract results
+                resume_data = analysis_result["resume_data"]
+                job_requirements = analysis_result["job_requirements"]
+                match_score = analysis_result["compatibility_score"]
+                explanation = analysis_result["detailed_explanation"]
                 
                 # Save to database
                 db_manager.save_analysis(
