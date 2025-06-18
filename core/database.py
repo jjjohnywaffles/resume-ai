@@ -27,7 +27,29 @@ from datetime import datetime
 from bson import ObjectId
 from config import get_config
 
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
+
 config = get_config()
+
+class User(UserMixin):
+    """User class for Flask-Login integration"""
+    def __init__(self, user_data):
+        self.id = str(user_data['_id'])
+        self.email = user_data.get('email')
+        self.name = user_data.get('name')
+        self.created_at = user_data.get('created_at')
+    
+    @staticmethod
+    def get(user_id):
+        try:
+            user_data = DatabaseManager().get_user_by_id(user_id)
+            if user_data:
+                return User(user_data)
+            return None
+        except:
+            return None
+
 
 class DatabaseManager:
     """Updated database manager with three-collection schema"""
@@ -52,14 +74,14 @@ class DatabaseManager:
             print(f"Error initializing database: {e}")
             raise
     
-    def save_analysis(self, name, resume_data, job_requirements, match_score, 
+    def save_analysis(self, email, resume_data, job_requirements, match_score, 
                      explanation, job_title, company):
         """
         Now saves to three collections instead of one
         """
         try:
             # Save user and resume data
-            user_id = self._save_user_resume(name, resume_data)
+            user_id = self._save_user_resume(email, resume_data)
             
             # Save job data  
             job_id = self._save_job(job_title, company, job_requirements)
@@ -86,12 +108,50 @@ class DatabaseManager:
         except Exception as e:
             print(f"Error saving analysis: {e}")
             return None
+        
+    def get_user_by_email(self, email):
+        """Find user by email"""
+        return self.users_collection.find_one({"email": email})
+
+    def get_user_by_id(self, user_id):
+        """Find user by ID"""
+        try:
+            return self.users_collection.find_one({"_id": ObjectId(user_id)})
+        except:
+            return None
+        
+    def verify_user(self, email, password):
+        """Verify user credentials"""
+        user = self.get_user_by_email(email)
+        if user and check_password_hash(user['password'], password):
+            return user
+        return None
     
-    def _save_user_resume(self, name, resume_data):
+
+    def create_user(self, name, email, password):
+        """Create new user with hashed password"""
+        if self.get_user_by_email(email):
+            return None  # User already exists
+    
+        hashed_password = generate_password_hash(password)
+        user_doc = {
+            "name": name,
+            "email": email,
+            "password": hashed_password,
+            "resume_data": None, 
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        
+        result = self.users_collection.insert_one(user_doc)
+        return str(result.inserted_id)
+        
+    
+    def _save_user_resume(self, email, resume_data):
         """Save user and their resume data"""
         try:
             # Check if user already exists
-            existing_user = self.users_collection.find_one({"name": name})
+            existing_user = self.get_user_by_email(email)
             
             if existing_user:
                 # Update existing user's resume
@@ -105,16 +165,6 @@ class DatabaseManager:
                     }
                 )
                 return existing_user["_id"]
-            else:
-                # Create new user
-                user_doc = {
-                    "name": name,
-                    "resume_data": resume_data,
-                    "created_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow()
-                }
-                result = self.users_collection.insert_one(user_doc)
-                return result.inserted_id
                 
         except Exception as e:
             print(f"Error saving user: {e}")
