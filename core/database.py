@@ -32,25 +32,6 @@ from flask_login import UserMixin
 
 config = get_config()
 
-class User(UserMixin):
-    """User class for Flask-Login integration"""
-    def __init__(self, user_data):
-        self.id = str(user_data['_id'])
-        self.email = user_data.get('email')
-        self.name = user_data.get('name')
-        self.created_at = user_data.get('created_at')
-    
-    @staticmethod
-    def get(user_id):
-        try:
-            user_data = DatabaseManager().get_user_by_id(user_id)
-            if user_data:
-                return User(user_data)
-            return None
-        except:
-            return None
-
-
 class DatabaseManager:
     """Updated database manager with three-collection schema"""
     
@@ -74,15 +55,18 @@ class DatabaseManager:
             print(f"Error initializing database: {e}")
             raise
     
-    def save_analysis(self, email, resume_data, job_requirements, match_score, 
+    def save_analysis(self, name, resume_data, job_requirements, match_score, 
                      explanation, job_title, company):
         """
         Now saves to three collections instead of one
         """
         try:
             # Save user and resume data
+            user = self.get_user_by_email(email)
+            if not user_id:
+                raise ValueError(f"User with email {email} not found")
             user_id = self._save_user_resume(email, resume_data)
-            
+                        
             # Save job data  
             job_id = self._save_job(job_title, company, job_requirements)
             
@@ -95,7 +79,7 @@ class DatabaseManager:
                 "timestamp": datetime.utcnow(),
                 
                 # Keep legacy fields for your existing Flask app
-                "name": name,
+                "name": user.get('name'),
                 "job_title": job_title,
                 "company": company,
                 "resume_data": resume_data,
@@ -108,7 +92,7 @@ class DatabaseManager:
         except Exception as e:
             print(f"Error saving analysis: {e}")
             return None
-        
+    
     def get_user_by_email(self, email):
         """Find user by email"""
         return self.users_collection.find_one({"email": email})
@@ -145,8 +129,6 @@ class DatabaseManager:
         
         result = self.users_collection.insert_one(user_doc)
         return str(result.inserted_id)
-        
-    
     def _save_user_resume(self, email, resume_data):
         """Save user and their resume data"""
         try:
@@ -165,6 +147,16 @@ class DatabaseManager:
                     }
                 )
                 return existing_user["_id"]
+            else:
+                # Create new user
+                user_doc = {
+                    "email": email,
+                    "resume_data": resume_data,
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }
+                result = self.users_collection.insert_one(user_doc)
+                return result.inserted_id
                 
         except Exception as e:
             print(f"Error saving user: {e}")
@@ -230,6 +222,8 @@ NEW DATABASE STRUCTURE:
 {
     "_id": ObjectId,
     "name": "John Doe",
+    "email": "john.doe@example.com",
+    "password": "hashed_password",
     "resume_data": {
         "skills": [...],
         "experience": [...],
