@@ -1,16 +1,18 @@
 """
-File: ai_analyzer.py
+File: analyzer.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/16/25 (Fixed explanation feature)
+Last Modified: 6/17/25 (Added concurrent processing for speed optimization)
 Description: AI analysis module that interfaces with OpenAI's GPT model to extract
              structured data from resumes and job descriptions, then calculates
-             compatibility scores with detailed explanations.
+             compatibility scores with detailed explanations. Now uses concurrent
+             processing to analyze resume and job description simultaneously.
 Classes:
-    - AIAnalyzer: Main class for AI-powered resume and job analysis
+    - ResumeAnalyzer: Main class for AI-powered resume and job analysis
 Methods:
     - extract_resume_data(): Parse resume text into structured JSON
     - extract_job_requirements(): Parse job description into requirements
+    - extract_data_concurrent(): Run both extractions simultaneously
     - explain_match_score(): Generate detailed compatibility analysis
     - calculate_match_score(): Calculate numerical compatibility score
     - get_detailed_analysis(): Get both score and explanation
@@ -19,17 +21,20 @@ Methods:
 import json
 import openai
 import re
+import concurrent.futures
+from threading import Lock
 from config import get_config
 
 config = get_config()
 
 class ResumeAnalyzer:
-    """Main resume analysis class"""
+    """Main resume analysis class with concurrent processing"""
     
     def __init__(self):
         if not config.OPENAI_API_KEY:
             raise ValueError("OpenAI API key not found. Please check your .env file.")
         openai.api_key = config.OPENAI_API_KEY
+        self._api_lock = Lock()  # Thread safety for API calls
     
     def extract_resume_data(self, resume_text):
         """Extract skills and experience from resume"""
@@ -73,15 +78,15 @@ class ResumeAnalyzer:
             
             content = response.choices[0].message.content
             parsed_json = json.loads(content)
-            print("JSON PARSING SUCCESSFUL")
+            print("JSON PARSING SUCCESSFUL - Resume")
             
             return parsed_json
             
         except json.JSONDecodeError as e:
-            print(f"JSON PARSING FAILED: {e}")
+            print(f"JSON PARSING FAILED - Resume: {e}")
             return {"error": "Failed to parse resume data"}
         except Exception as e:
-            print(f"API CALL FAILED: {e}")
+            print(f"API CALL FAILED - Resume: {e}")
             return {"error": f"API call failed: {str(e)}"}
     
     def extract_job_requirements(self, job_description):
@@ -115,16 +120,52 @@ class ResumeAnalyzer:
             
             content = response.choices[0].message.content
             parsed_json = json.loads(content)
-            print("JSON PARSING SUCCESSFUL")
+            print("JSON PARSING SUCCESSFUL - Job")
             
             return parsed_json
             
         except json.JSONDecodeError as e:
-            print(f"JSON PARSING FAILED: {e}")
+            print(f"JSON PARSING FAILED - Job: {e}")
             return {"error": "Failed to parse job requirements"}
         except Exception as e:
-            print(f"API CALL FAILED: {e}")
+            print(f"API CALL FAILED - Job: {e}")
             return {"error": f"API call failed: {str(e)}"}
+    
+    def extract_data_concurrent(self, resume_text, job_description):
+        """
+        Extract resume and job data concurrently for faster processing
+        This is the main speed improvement - runs both API calls simultaneously
+        """
+        print("STARTING CONCURRENT DATA EXTRACTION...")
+        
+        try:
+            # Use ThreadPoolExecutor to run both API calls concurrently
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                # Submit both tasks simultaneously
+                resume_future = executor.submit(self.extract_resume_data, resume_text)
+                job_future = executor.submit(self.extract_job_requirements, job_description)
+                
+                # Wait for both to complete
+                resume_data = resume_future.result()
+                job_requirements = job_future.result()
+            
+            print("CONCURRENT EXTRACTION COMPLETED")
+            
+            # Check for errors
+            if "error" in resume_data:
+                return {"error": "Failed to extract resume data", "details": resume_data}
+            
+            if "error" in job_requirements:
+                return {"error": "Failed to extract job requirements", "details": job_requirements}
+            
+            return {
+                "resume_data": resume_data,
+                "job_requirements": job_requirements
+            }
+            
+        except Exception as e:
+            print(f"CONCURRENT EXTRACTION FAILED: {e}")
+            return {"error": f"Concurrent extraction failed: {str(e)}"}
     
     def explain_match_score(self, resume_data, job_requirements):
         """Calculate compatibility score with detailed explanation"""
@@ -320,23 +361,61 @@ class ResumeAnalyzer:
             print(f"Error parsing breakdown: {e}")
             return {"error": "Could not parse explanation breakdown"}
 
-    # USAGE EXAMPLES:
+    # IMPROVED USAGE METHODS:
+    
+    def analyze_resume_job_match_fast(self, resume_text, job_description):
+        """
+        OPTIMIZED VERSION: Complete analysis workflow with concurrent processing
+        This is the main method you should use for fastest performance
+        """
+        print("STARTING FAST ANALYSIS WORKFLOW...")
+        
+        # Extract data concurrently (NEW - this is the speed improvement)
+        extraction_result = self.extract_data_concurrent(resume_text, job_description)
+        
+        if "error" in extraction_result:
+            print("FAST ANALYSIS FAILED")
+            return extraction_result
+        
+        resume_data = extraction_result["resume_data"]
+        job_requirements = extraction_result["job_requirements"]
+        
+        # Get detailed analysis
+        analysis = self.get_detailed_analysis(resume_data, job_requirements)
+        
+        print("FAST ANALYSIS WORKFLOW COMPLETED")
+        
+        return {
+            "resume_data": resume_data,
+            "job_requirements": job_requirements,
+            "compatibility_score": analysis["score"],
+            "detailed_explanation": analysis["explanation"],
+            "breakdown": analysis.get("breakdown", {}),
+            "error": analysis.get("error")
+        }
     
     def analyze_resume_job_match(self, resume_text, job_description):
-        """Complete analysis workflow - returns both score and explanation"""
-        print("STARTING COMPLETE ANALYSIS WORKFLOW...")
+        """
+        LEGACY VERSION: Complete analysis workflow - sequential processing
+        Kept for backward compatibility, but use analyze_resume_job_match_fast() instead
+        """
+        print("STARTING COMPLETE ANALYSIS WORKFLOW (SEQUENTIAL)...")
         
-        # Extract data
+        # Extract data sequentially (old way)
         resume_data = self.extract_resume_data(resume_text)
         if "error" in resume_data:
+            print("SEQUENTIAL ANALYSIS FAILED")
             return {"error": "Failed to extract resume data", "details": resume_data}
         
         job_requirements = self.extract_job_requirements(job_description)
         if "error" in job_requirements:
+            print("SEQUENTIAL ANALYSIS FAILED")
             return {"error": "Failed to extract job requirements", "details": job_requirements}
         
         # Get detailed analysis
         analysis = self.get_detailed_analysis(resume_data, job_requirements)
+        
+        print("SEQUENTIAL ANALYSIS WORKFLOW COMPLETED")
         
         return {
             "resume_data": resume_data,
@@ -352,14 +431,4 @@ class ResumeAnalyzer:
 if __name__ == "__main__":
     analyzer = ResumeAnalyzer()
     
-    # For just the score:
-    # score = analyzer.calculate_match_score(resume_data, job_requirements)
-    
-    # For detailed analysis:
-    # detailed_result = analyzer.get_detailed_analysis(resume_data, job_requirements)
-    # print(f"Score: {detailed_result['score']}")
-    # print(f"Explanation: {detailed_result['explanation']}")
-    
-    # For complete workflow:
-    # full_analysis = analyzer.analyze_resume_job_match(resume_text, job_description)
     pass
