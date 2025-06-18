@@ -233,6 +233,8 @@ class ResumeAnalyzer:
         Bonus Points: +A
         **FINAL COMPATIBILITY SCORE: [final_number]/100**
 
+        IMPORTANT: Make sure the final score in "FINAL COMPATIBILITY SCORE" exactly matches your calculation above.
+
         Resume Data:
         {json.dumps(resume_data, indent=2)}
         
@@ -247,41 +249,25 @@ class ResumeAnalyzer:
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are a precise mathematical scoring system. Always follow the exact formula provided. Be consistent - identical inputs must produce identical outputs. Provide detailed breakdowns showing your work."
+                        "content": "You are a precise mathematical scoring system. Always follow the exact formula provided. Be consistent - identical inputs must produce identical outputs. Provide detailed breakdowns showing your work. CRITICAL: Ensure your final score matches your calculation exactly."
                     },
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.0,
-                max_tokens=3000
+                max_tokens=6000
             )
             
             content = response.choices[0].message.content
+            print("RESPONSE CONTENT FOR DEBUGGING:")
+            print("="*50)
+            print(content)
+            print("="*50)
             
-            # Extract the final score
-            score_match = re.search(r'FINAL COMPATIBILITY SCORE: (\d+)/100', content)
-            if score_match:
-                final_score = int(score_match.group(1))
-            else:
-                # Fallback patterns
-                score_patterns = [
-                    r'Final score: (\d+)',
-                    r'Score: (\d+)',
-                    r'(\d+)/100'
-                ]
-                
-                final_score = None
-                for pattern in score_patterns:
-                    match = re.search(pattern, content)
-                    if match:
-                        final_score = int(match.group(1))
-                        break
-                
-                if final_score is None:
-                    print("WARNING: Could not extract score, using fallback calculation")
-                    final_score = 50
+            # IMPROVED SCORE EXTRACTION with multiple methods
+            final_score = self._extract_score_from_response(content)
             
             # Apply consistency constraints
-            final_score = max(15, min(95, final_score))
+            final_score = max(0, min(100, final_score))
             
             print(f"EXTRACTED FINAL SCORE: {final_score}")
             
@@ -297,6 +283,96 @@ class ResumeAnalyzer:
                 "score": 0,
                 "error": f"API call failed: {str(e)}"
             }
+
+    def _extract_score_from_response(self, content):
+        """
+        Updated score extraction with multiple fallback methods
+        """
+        print("ATTEMPTING SCORE EXTRACTION...")
+        
+        # Method 1: Look for the exact format we requested
+        patterns = [
+            r'\*\*FINAL COMPATIBILITY SCORE: (\d+)/100\*\*',  # With asterisks
+            r'FINAL COMPATIBILITY SCORE: (\d+)/100',          # Without asterisks
+            r'FINAL COMPATIBILITY SCORE:\s*(\d+)/100',        # With whitespace
+            r'FINAL COMPATIBILITY SCORE:\s*(\d+)',            # Just the number
+        ]
+        
+        for i, pattern in enumerate(patterns):
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                score = int(match.group(1))
+                print(f"SCORE FOUND using pattern {i+1}: {score}")
+                return score
+        
+        # Method 2: Extract from calculation section and verify
+        calc_score = self._extract_from_calculation_section(content)
+        if calc_score is not None:
+            print(f"SCORE FOUND from calculation: {calc_score}")
+            return calc_score
+        
+        # Method 3: Last resort - look for any number/100 pattern
+        fallback_patterns = [
+            r'(\d+)/100',
+            r'Final score:\s*(\d+)',
+            r'Score:\s*(\d+)',
+            r'total.*?(\d+)',
+        ]
+        
+        for i, pattern in enumerate(fallback_patterns):
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                score = int(match.group(1))
+                print(f"FALLBACK SCORE FOUND using pattern {i+1}: {score}")
+                return score
+        
+        print("WARNING: No score found in response, using default")
+        return 50
+
+    def _extract_from_calculation_section(self, content):
+        """
+        Extract score by parsing the calculation section
+        """
+        try:
+            # Look for the calculation section
+            calc_match = re.search(r'\*\*CALCULATION:\*\*(.*?)(?=\*\*FINAL|$)', content, re.DOTALL | re.IGNORECASE)
+            if not calc_match:
+                return None
+            
+            calc_section = calc_match.group(1)
+            print("FOUND CALCULATION SECTION:")
+            print(calc_section)
+            
+            # Extract base score, deductions, and bonuses
+            base_score = 100
+            total_deductions = 0
+            total_bonuses = 0
+            
+            # Look for deduction patterns
+            deduction_patterns = [
+                r'Skills Deductions?:\s*-(\d+)',
+                r'Experience Deductions?:\s*-(\d+)',
+                r'Education Deductions?:\s*-(\d+)',
+            ]
+            
+            for pattern in deduction_patterns:
+                match = re.search(pattern, calc_section, re.IGNORECASE)
+                if match:
+                    total_deductions += int(match.group(1))
+            
+            # Look for bonus patterns
+            bonus_match = re.search(r'Bonus Points?:\s*\+(\d+)', calc_section, re.IGNORECASE)
+            if bonus_match:
+                total_bonuses = int(bonus_match.group(1))
+            
+            calculated_score = base_score - total_deductions + total_bonuses
+            print(f"CALCULATED: {base_score} - {total_deductions} + {total_bonuses} = {calculated_score}")
+            
+            return calculated_score
+            
+        except Exception as e:
+            print(f"Error extracting from calculation: {e}")
+            return None
 
     def calculate_match_score(self, resume_data, job_requirements):
         """Calculate compatibility score between resume and job (score only)"""
@@ -360,7 +436,8 @@ class ResumeAnalyzer:
         except Exception as e:
             print(f"Error parsing breakdown: {e}")
             return {"error": "Could not parse explanation breakdown"}
-
+    
+    
     # IMPROVED USAGE METHODS:
     
     def analyze_resume_job_match_fast(self, resume_text, job_description):
@@ -427,8 +504,7 @@ class ResumeAnalyzer:
         }
 
 
-# Example usage:
+# Test
 if __name__ == "__main__":
     analyzer = ResumeAnalyzer()
-    
     pass

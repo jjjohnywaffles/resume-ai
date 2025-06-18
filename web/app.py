@@ -2,11 +2,10 @@
 File: app.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/17/25 (Added concurrent processing for speed optimization)
+Last Modified: 6/15/25
 Description: Main Flask application server for the Resume Analyzer web application.
              Handles HTTP routes, file uploads, and coordinates between the AI analyzer,
              database, and PDF reader components to provide resume-job matching analysis.
-             Now uses concurrent processing for faster resume and job analysis.
 Dependencies: Flask, werkzeug, ai_analyzer, database, pdf_reader, config
 Routes:
     - GET  /           : Main page with analysis form
@@ -61,7 +60,7 @@ def create_app():
     
     @app.route('/analyze', methods=['POST'])
     def analyze():
-        """Handle resume analysis with concurrent processing for improved speed"""
+        """Handle resume analysis"""
         if not all([ai_analyzer, db_manager, pdf_reader]):
             return jsonify({
                 'success': False,
@@ -111,17 +110,9 @@ def create_app():
                         'error': resume_text
                     }), 400
                 
-                # Use concurrent extraction for faster processing (NEW - replaces sequential calls)
-                extraction_result = ai_analyzer.extract_data_concurrent(resume_text, job_description)
-                
-                if "error" in extraction_result:
-                    return jsonify({
-                        'success': False,
-                        'error': extraction_result['error']
-                    }), 400
-                
-                resume_data = extraction_result["resume_data"]
-                job_requirements = extraction_result["job_requirements"]
+                # Extract structured data
+                resume_data = ai_analyzer.extract_resume_data(resume_text)
+                job_requirements = ai_analyzer.extract_job_requirements(job_description)
                 
                 # Get detailed explanation and score
                 explanation_result = ai_analyzer.explain_match_score(resume_data, job_requirements)
