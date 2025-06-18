@@ -8,7 +8,7 @@ Description: Improved database management module for MongoDB operations with
             and data persistence for resume analyses while maintaining 
             backward compatibility with existing Flask application.
 Classes:
-   - DatabaseManager: MongoDB interface with three-collection architecture
+   - DatabaseManager: MongoDB interface with three collection architecture
 Collections:
    - users: Stores user information and resume data
    - jobs: Stores job descriptions and requirements
@@ -55,7 +55,6 @@ class DatabaseManager:
     def save_analysis(self, name, resume_data, job_requirements, match_score, 
                      explanation, job_title, company):
         """
-        EXACT SAME METHOD SIGNATURE - no changes to your Flask app needed
         Now saves to three collections instead of one
         """
         try:
@@ -150,9 +149,7 @@ class DatabaseManager:
             return None
     
     def get_all_analyses(self, limit=100):
-        """
-        EXACT SAME RETURN FORMAT - your Flask app expects this format
-        """
+
         try:
             analyses = list(self.analyses_collection.find().sort("timestamp", -1).limit(limit))
             return analyses
@@ -161,9 +158,7 @@ class DatabaseManager:
             return []
     
     def compare_candidates_for_position(self, job_title, company, limit=10):
-        """
-        EXACT SAME RETURN FORMAT - your Flask app expects this format
-        """
+
         try:
             candidates = list(
                 self.analyses_collection.find({
