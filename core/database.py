@@ -1,176 +1,249 @@
 """
-File: database.py
+File: app.py
 Author: Jonathan Hu
 Date Created: 6/12/25
 Last Modified: 6/15/25
-Description: Database management module for MongoDB operations. Handles all
-             database connections, queries, and data persistence for resume analyses.
-Classes:
-    - DatabaseManager: MongoDB interface for storing and retrieving analyses
-Methods:
-    - save_analysis(): Store analysis results with metadata
-    - get_analysis_by_name(): Retrieve analysis by candidate name
-    - get_all_analyses(): Fetch all stored analyses
-    - compare_scores_by_position(): Compare candidates for same position
-    - Various query methods for filtering by company, job title, etc.
+Description: Main Flask application server for the Resume Analyzer web application.
+             Handles HTTP routes, file uploads, and coordinates between the AI analyzer,
+             database, and PDF reader components to provide resume-job matching analysis.
+Dependencies: Flask, werkzeug, ai_analyzer, database, pdf_reader, config
+Routes:
+    - GET  /           : Main page with analysis form
+    - POST /analyze    : Process resume and job description
+    - GET  /explanation: Retrieve detailed scoring explanation
+    - GET  /history    : View all previous analyses
+    - GET  /compare    : Compare candidates for specific positions
 """
-from pymongo import MongoClient
+
+from flask import Flask, render_template, request, jsonify, session
+from flask_cors import CORS
+import os
+import tempfile
 from datetime import datetime
-from typing import List, Dict
+from werkzeug.utils import secure_filename
+
+# Import from core modules (clean imports)
+from core.analyzer import ResumeAnalyzer
+from core.database import DatabaseManager  
+from core.pdf_reader import PDFReader
 from config import get_config
 
-config = get_config()
+def create_app():
+    """Create and configure Flask application"""
+    app = Flask(__name__, template_folder='../templates')
+    
+    # Get configuration
+    config = get_config()
+    app.secret_key = config.SECRET_KEY
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+    app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
+    
+    # Setup CORS
+    CORS(app)
+    
+    # Initialize components
+    try:
+        ai_analyzer = ResumeAnalyzer()
+        db_manager = DatabaseManager()
+        pdf_reader = PDFReader()
+        print("Application components initialized successfully")
+    except Exception as e:
+        print(f"Error initializing components: {e}")
+        ai_analyzer = None
+        db_manager = None
+        pdf_reader = None
+    
+    @app.route('/')
+    def index():
+        """Main page"""
+        return render_template('index.html')
+    
+    @app.route('/analyze', methods=['POST'])
+    def analyze():
+        """Handle resume analysis - EXACT same logic as original"""
+        if not all([ai_analyzer, db_manager, pdf_reader]):
+            return jsonify({
+                'success': False,
+                'error': 'System not properly initialized. Please check configuration.'
+            }), 500
+        
+        try:
+            # Get form data
+            name = request.form.get('name', '').strip()
+            job_title = request.form.get('job_title', '').strip()
+            company = request.form.get('company', '').strip()
+            job_description = request.form.get('job_description', '').strip()
+            
+            # Validate inputs
+            if not all([name, job_title, company, job_description]):
+                return jsonify({
+                    'success': False,
+                    'error': 'Please fill in all required fields'
+                }), 400
+            
+            # Handle file upload
+            if 'resume' not in request.files:
+                return jsonify({
+                    'success': False,
+                    'error': 'No resume file uploaded'
+                }), 400
+            
+            file = request.files['resume']
+            if file.filename == '' or not file.filename.lower().endswith('.pdf'):
+                return jsonify({
+                    'success': False,
+                    'error': 'Please upload a PDF file'
+                }), 400
+            
+            # Save uploaded file temporarily
+            filename = secure_filename(file.filename)
+            temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(temp_path)
+            
+            try:
+                # Extract text from resume
+                resume_text = pdf_reader.extract_text_from_pdf(temp_path)
+                
+                if resume_text.startswith("Error"):
+                    return jsonify({
+                        'success': False,
+                        'error': resume_text
+                    }), 400
+                
+                # Extract structured data
+                resume_data = ai_analyzer.extract_resume_data(resume_text)
+                job_requirements = ai_analyzer.extract_job_requirements(job_description)
+                
+                # Get detailed explanation and score
+                explanation_result = ai_analyzer.explain_match_score(resume_data, job_requirements)
+                match_score = explanation_result["score"]
+                explanation = explanation_result["explanation"]
+                
+                # Save to database
+                db_manager.save_analysis(
+                    name, resume_data, job_requirements, match_score,
+                    explanation, job_title, company
+                )
+                
+                # Store in session for explanation view
+                session['last_analysis'] = {
+                    'name': name,
+                    'job_title': job_title,
+                    'company': company,
+                    'explanation': explanation
+                }
+                
+                return jsonify({
+                    'success': True,
+                    'result': {
+                        'name': name,
+                        'job_title': job_title,
+                        'company': company,
+                        'match_score': match_score,
+                        'resume_data': resume_data,
+                        'job_requirements': job_requirements
+                    }
+                })
+                
+            finally:
+                # Clean up temporary file
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                    
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Analysis failed: {str(e)}'
+            }), 500
+    
+    @app.route('/explanation')
+    def get_explanation():
+        """Get detailed explanation for last analysis"""
+        last_analysis = session.get('last_analysis')
+        if not last_analysis:
+            return jsonify({
+                'success': False,
+                'error': 'No analysis available. Please run an analysis first.'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'explanation': last_analysis['explanation'],
+            'name': last_analysis['name'],
+            'job_title': last_analysis['job_title'],
+            'company': last_analysis['company']
+        })
+    
+    @app.route('/history')
+    def history():
+        """Get analysis history"""
+        if not db_manager:
+            return jsonify({
+                'success': False,
+                'error': 'Database not initialized'
+            }), 500
+        
+        try:
+            analyses = db_manager.get_all_analyses()
+            
+            # Format analyses for display
+            formatted_analyses = []
+            for analysis in analyses:
+                formatted_analyses.append({
+                    'name': analysis.get('name', ''),
+                    'job_title': analysis.get('job_title', 'N/A'),
+                    'company': analysis.get('company', 'N/A'),
+                    'match_score': analysis.get('match_score', 0),
+                    'timestamp': analysis.get('timestamp', datetime.utcnow()).strftime('%Y-%m-%d %H:%M')
+                })
+            
+            # Sort by timestamp (newest first)
+            formatted_analyses.sort(key=lambda x: x['timestamp'], reverse=True)
+            
+            return jsonify({
+                'success': True,
+                'analyses': formatted_analyses
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to retrieve history: {str(e)}'
+            }), 500
+    
+    @app.route('/compare/<job_title>/<company>')
+    def compare_candidates(job_title, company):
+        """Compare candidates for a specific position"""
+        if not db_manager:
+            return jsonify({
+                'success': False,
+                'error': 'Database not initialized'
+            }), 500
+        
+        try:
+            candidates = db_manager.compare_candidates_for_position(job_title, company, 10)
+            return jsonify({
+                'success': True,
+                'candidates': candidates
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to compare candidates: {str(e)}'
+            }), 500
+    
+    @app.errorhandler(413)
+    def too_large(e):
+        """Handle file upload size errors"""
+        return jsonify({
+            'success': False,
+            'error': 'File too large. Maximum size is 16MB.'
+        }), 413
+    
+    return app
 
-class DatabaseManager:
-    """MongoDB interface for storing and retrieving analyses"""
-    
-    def __init__(self):
-        # DB Connection
-        self.client = MongoClient(config.MONGODB_URI)
-        self.db = self.client[config.DATABASE_NAME]
-        self.collection = self.db.resume_analyses
-    
-    def save_analysis(self, name, resume_data, job_description_data, match_score, explanation=None, job_title=None, company=None):
-        """Save resume analysis to database - SAME as original"""
-        document = {
-            "name": name,
-            "resume_data": resume_data,
-            "job_description_data": job_description_data,
-            "match_score": match_score,
-            "timestamp": datetime.utcnow()
-        }
-        
-        if explanation:
-            document["explanation"] = explanation
-        if job_title:
-            document["job_title"] = job_title
-        if company:
-            document["company"] = company
-        
-        result = self.collection.update_one(
-            {"name": name},
-            {"$set": document},
-            upsert=True
-        )
-        return result
-    
-    def get_analysis_by_name(self, name):
-        """Get analysis by submitter name"""
-        return self.collection.find_one({"name": name})
-    
-    def get_all_analyses(self):
-        """Get all analyses"""
-        return list(self.collection.find())
-    
-    def get_analysis_by(self, query={}, projection=None):
-        """Pull data from collection with optional query and projection"""
-        if projection:
-            return list(self.collection.find(query, projection))
-        return list(self.collection.find(query))
-    
-    def get_analyses_by_company(self, company_name):
-        """Get all analyses for a specific company"""
-        return list(self.collection.find({"company": company_name}))
-    
-    def get_analyses_by_job_title(self, job_title):
-        """Get all analyses for a specific job title"""
-        return list(self.collection.find({"job_title": job_title}))
-    
-    def get_analyses_by_job_and_company(self, job_title, company_name):
-        """Get analyses for specific job and company"""
-        return list(self.collection.find({
-            "job_title": job_title,
-            "company": company_name
-        }))
-    
-    def compare_scores_by(self, job_description_query: dict = {}, k: int = 5) -> List[Dict]:
-        """Compare match scores - SAME as original"""
-        query = {}
-        if job_description_query:
-            query = {"job_description_data": {"$elemMatch": job_description_query}}
-        
-        analyses = self.get_analysis_by(
-            query=query,
-            projection={
-                "name": 1,
-                "match_score": 1,
-                "resume_data": 1,
-                "job_title": 1,
-                "company": 1,
-                "job_description_data": 0,
-                "_id": 0
-            }
-        )
-        if not analyses:
-            return []
-        
-        sorted_analyses = sorted(
-            analyses,
-            key=lambda x: x.get('match_score', 0),
-            reverse=True
-        )
-        
-        top_k = []
-        for analysis in sorted_analyses[:k]:
-            top_k.append({
-                'name': analysis.get('name', ''),
-                'score': analysis.get('match_score', 0),
-                'job_title': analysis.get('job_title', 'N/A'),
-                'company': analysis.get('company', 'N/A'),
-                'resume_summary': analysis.get('resume_data', {}).get('summary', ''),
-                'skills': analysis.get('resume_data', {}).get('skills', [])
-            })
-        
-        return top_k
-    
-    def compare_scores_by_position(self, job_title: str = None, company: str = None, k: int = 5) -> List[Dict]:
-        """Compare candidates for same position"""
-        query = {}
-        if job_title:
-            query["job_title"] = job_title
-        if company:
-            query["company"] = company
-        
-        if not query:
-            return []
-        
-        analyses = self.get_analysis_by(
-            query=query,
-            projection={
-                "name": 1,
-                "match_score": 1,
-                "job_title": 1,
-                "company": 1,
-                "resume_data": 1,
-                "_id": 0
-            }
-        )
-        
-        if not analyses:
-            return []
-        
-        sorted_analyses = sorted(
-            analyses,
-            key=lambda x: x.get('match_score', 0),
-            reverse=True
-        )
-        
-        top_k = []
-        for analysis in sorted_analyses[:k]:
-            top_k.append({
-                'name': analysis.get('name', ''),
-                'score': analysis.get('match_score', 0),
-                'job_title': analysis.get('job_title', 'N/A'),
-                'company': analysis.get('company', 'N/A'),
-                'skills': analysis.get('resume_data', {}).get('skills', [])
-            })
-        
-        return top_k
-    
-    def compare_candidates_for_position(self, job_title, company, top_k=10):
-        """Alias for compare_scores_by_position - for compatibility"""
-        return self.compare_scores_by_position(job_title, company, top_k)
-    
-    def close_connection(self):
-        """Close database connection"""
-        self.client.close()
+if __name__ == '__main__':
+    app = create_app()
+    print("Starting Resume Analyzer Web Interface...")
+    print("Access at: http://localhost:5000")
+    app.run(debug=True, port=5000)
