@@ -2,7 +2,7 @@
 File: analyzer.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/17/25 (Added concurrent processing for speed optimization)
+Last Modified: 6/18/25 (Added concurrent processing for speed optimization)
 Description: AI analysis module that interfaces with OpenAI's GPT model to extract
              structured data from resumes and job descriptions, then calculates
              compatibility scores with detailed explanations. Now uses concurrent
@@ -254,7 +254,7 @@ class ResumeAnalyzer:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.0,
-                max_tokens=6000
+                max_tokens=3000
             )
             
             content = response.choices[0].message.content
@@ -267,7 +267,7 @@ class ResumeAnalyzer:
             final_score = self._extract_score_from_response(content)
             
             # Apply consistency constraints
-            final_score = max(0, min(100, final_score))
+            final_score = max(15, min(95, final_score))
             
             print(f"EXTRACTED FINAL SCORE: {final_score}")
             
@@ -286,43 +286,57 @@ class ResumeAnalyzer:
 
     def _extract_score_from_response(self, content):
         """
-        Updated score extraction with multiple fallback methods
+        Improved score extraction with multiple fallback methods
         """
         print("ATTEMPTING SCORE EXTRACTION...")
         
-        # Method 1: Look for the exact format we requested
-        patterns = [
-            r'\*\*FINAL COMPATIBILITY SCORE: (\d+)/100\*\*',  # With asterisks
-            r'FINAL COMPATIBILITY SCORE: (\d+)/100',          # Without asterisks
-            r'FINAL COMPATIBILITY SCORE:\s*(\d+)/100',        # With whitespace
-            r'FINAL COMPATIBILITY SCORE:\s*(\d+)',            # Just the number
+        # Method 1: Look for calculation format (e.g., "= 50/100")
+        calc_patterns = [
+            r'=\s*(\d+)/100',                                    # = 50/100
+            r'=\s*(\d+)\s*/\s*100',                             # = 50 / 100
+            r'FINAL COMPATIBILITY SCORE:.*?=\s*(\d+)/100',      # Full calculation ending in = 50/100
+            r'FINAL COMPATIBILITY SCORE:.*?=\s*(\d+)',          # Full calculation ending in = 50
         ]
         
-        for i, pattern in enumerate(patterns):
+        for i, pattern in enumerate(calc_patterns):
             match = re.search(pattern, content, re.IGNORECASE)
             if match:
                 score = int(match.group(1))
-                print(f"SCORE FOUND using pattern {i+1}: {score}")
+                print(f"SCORE FOUND using calculation pattern {i+1}: {score}")
                 return score
         
-        # Method 2: Extract from calculation section and verify
+        # Method 2: Look for simple format (just the final number)
+        simple_patterns = [
+            r'FINAL COMPATIBILITY SCORE:\s*(\d+)/100',          # FINAL COMPATIBILITY SCORE: 50/100
+            r'\*\*FINAL COMPATIBILITY SCORE:\s*(\d+)/100\*\*',  # **FINAL COMPATIBILITY SCORE: 50/100**
+            r'FINAL COMPATIBILITY SCORE:\s*(\d+)',              # FINAL COMPATIBILITY SCORE: 50
+        ]
+        
+        for i, pattern in enumerate(simple_patterns):
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                score = int(match.group(1))
+                print(f"SCORE FOUND using simple pattern {i+1}: {score}")
+                return score
+        
+        # Method 3: Extract from calculation section and verify
         calc_score = self._extract_from_calculation_section(content)
         if calc_score is not None:
-            print(f"SCORE FOUND from calculation: {calc_score}")
+            print(f"SCORE FOUND from calculation section: {calc_score}")
             return calc_score
         
-        # Method 3: Last resort - look for any number/100 pattern
+        # Method 4: Last resort - look for any number/100 pattern (but be more careful)
         fallback_patterns = [
             r'(\d+)/100',
             r'Final score:\s*(\d+)',
             r'Score:\s*(\d+)',
-            r'total.*?(\d+)',
         ]
         
         for i, pattern in enumerate(fallback_patterns):
-            match = re.search(pattern, content, re.IGNORECASE)
-            if match:
-                score = int(match.group(1))
+            matches = re.findall(pattern, content, re.IGNORECASE)
+            if matches:
+                # Take the last match (most likely to be the final score)
+                score = int(matches[-1])
                 print(f"FALLBACK SCORE FOUND using pattern {i+1}: {score}")
                 return score
         
@@ -438,6 +452,7 @@ class ResumeAnalyzer:
             return {"error": "Could not parse explanation breakdown"}
     
     
+
     # IMPROVED USAGE METHODS:
     
     def analyze_resume_job_match_fast(self, resume_text, job_description):
@@ -504,7 +519,8 @@ class ResumeAnalyzer:
         }
 
 
-# Test
+# Example usage:
 if __name__ == "__main__":
     analyzer = ResumeAnalyzer()
+    
     pass
