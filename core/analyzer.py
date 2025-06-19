@@ -70,7 +70,7 @@ class ResumeAnalyzer:
         try:
             print("MAKING OPENAI API CALL - Resume Analysis...")
             response = openai.ChatCompletion.create(
-                model="gpt-4o-mini",
+                model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=1500
@@ -112,7 +112,7 @@ class ResumeAnalyzer:
         try:
             print("MAKING OPENAI API CALL - Job Analysis...")
             response = openai.ChatCompletion.create(
-                model="gpt-4o-mini",
+                model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=1500
@@ -286,7 +286,7 @@ class ResumeAnalyzer:
 
     def _extract_score_from_response(self, content):
         """
-        Improved score extraction with multiple fallback methods
+        Improved score extraction with multiple fallback methods (multiple not really necessary but with ai you never know)
         """
         print("ATTEMPTING SCORE EXTRACTION...")
         

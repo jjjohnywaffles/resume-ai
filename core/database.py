@@ -94,7 +94,7 @@ class DatabaseManager:
                 "explanation": explanation,
                 "timestamp": datetime.utcnow(),
                 
-                # Keep legacy fields for your existing Flask app
+                # Keep legacy fields
                 "name": name,
                 "job_title": job_title,
                 "company": company,
