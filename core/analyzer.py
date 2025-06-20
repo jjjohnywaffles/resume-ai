@@ -42,7 +42,7 @@ class ResumeAnalyzer:
         self.async_client = openai.AsyncOpenAI(api_key=config.OPENAI_API_KEY)
         
         self._api_lock = Lock()  # Thread safety for sync API calls
-        print("Using OpenAI v1.0+ with robust async support")
+        print("Using OpenAI v1.0+ with async support")
         
         # Simple in-memory cache for repeated analyses
         self._cache = {}
@@ -153,6 +153,8 @@ class ResumeAnalyzer:
             print(f"Async failed, using sync fallback: {e}")
             return self._extract_resume_data_sync(resume_text)
     
+    
+    # IF ASYNC FAILS (it shouldn't tho)
     def _extract_resume_data_sync(self, resume_text):
         """Sync fallback version using OpenAI v1.0+ API"""
         cache_key = f"resume_{self._get_cache_key(resume_text)}"
