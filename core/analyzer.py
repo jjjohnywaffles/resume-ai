@@ -53,7 +53,7 @@ class ResumeAnalyzer:
     
     def _run_async_safely(self, coro):
         """
-        Safely run async coroutine with timeout and proper error handling
+        Safely run async coroutine
         """
         try:
             # Use asyncio.run with timeout
