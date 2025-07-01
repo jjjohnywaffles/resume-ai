@@ -1,8 +1,8 @@
 """
 File: data_access.py
 Author: Jonathan Hu
-Date Created: 6/23/25
-Last Modified: 6/26/25
+Date Created: 6/20/25
+Last Modified: 6/20/25
 Description: Comprehensive data access layer for the resume analyzer application.
              Provides for retrieving and analyzing data from the database. Designed for use by other
              developers and API endpoints.
