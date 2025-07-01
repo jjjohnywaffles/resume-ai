@@ -2,11 +2,11 @@
 File: database.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/24/25
-Description: Improved database management module for MongoDB operations with 
-            three-collection schema. Handles database connections, queries, 
-            and data persistence for resume analyses while maintaining 
-            backward compatibility with existing Flask application.
+Last Modified: 6/25/25
+Description: Database management module for MongoDB operations with 
+            three collection schema. Handles database connections, queries, 
+            and data persistence for resume analyses. Stores resumes in 
+            original uploaded format.
 Classes:
    - DatabaseManager: MongoDB interface with three collection architecture
 Collections:
@@ -52,7 +52,7 @@ class User(UserMixin):
 
 
 class DatabaseManager:
-    """Database manager with dual resume storage - users collection + separate resumes table"""
+    """Database manager with single resume storage in users collection"""
     
     def __init__(self):
         try:
@@ -63,39 +63,35 @@ class DatabaseManager:
             self.client = MongoClient(connection_string)
             self.db = self.client[db_name]
             
-            # FOUR collections
+            # THREE collections (removed resumes collection)
             self.users_collection = self.db.users           # User info + resume data
-            self.resumes_collection = self.db.resumes       # Dedicated resumes table
             self.jobs_collection = self.db.jobs             # Job descriptions
             self.analyses_collection = self.db.analyses     # Analysis results
             
-            print("DatabaseManager initialized - dual resume storage (users + resumes tables)")
+            print("DatabaseManager initialized - single resume storage (users table only)")
             
         except Exception as e:
             print(f"Error initializing database: {e}")
             raise
     
     def save_analysis(self, name, resume_data, job_requirements, match_score, 
-                 explanation, job_title, company):
+                 explanation, job_title, company, original_resume=None):
         """
-        Save analysis with DUAL resume storage
+        Save analysis with resume in original uploaded format
+        
+        Args:
+            original_resume: The resume in its original uploaded format (text, binary, etc.)
+            resume_data: Parsed/processed resume data for analysis
         """
         try:
             print(f"    💾 Saving analysis for: {name}")
             
-            # Save user WITH resume data (original approach)
-            user_mongodb_id = self._save_user_resume(name, resume_data)
+            # Save user WITH resume data (both original and processed)
+            user_mongodb_id = self._save_user_resume(name, resume_data, original_resume)
             if user_mongodb_id is None:
                 print(f"    ❌ User save failed - cannot continue")
                 return None
             print(f"    ✅ User saved with _id: {user_mongodb_id}")
-            
-            # ALSO save resume data to separate resumes table
-            resume_mongodb_id = self._save_resume_separately(user_mongodb_id, name, resume_data)
-            if resume_mongodb_id is None:
-                print(f"    ⚠️ Separate resume save failed, but continuing...")
-            else:
-                print(f"    ✅ Resume also saved separately with _id: {resume_mongodb_id}")
             
             # Save job data  
             job_mongodb_id = self._save_job(job_title, company, job_requirements)
@@ -107,7 +103,6 @@ class DatabaseManager:
             # Save analysis with references
             analysis_doc = {
                 "user_ref": user_mongodb_id,        # Reference to users._id
-                "resume_ref": resume_mongodb_id,     # Reference to resumes._id (could be None)
                 "job_ref": job_mongodb_id,          # Reference to jobs._id  
                 "match_score": match_score,
                 "explanation": explanation,
@@ -131,13 +126,20 @@ class DatabaseManager:
             traceback.print_exc()
             return None
     
-    def _save_user_resume(self, name, resume_data):
-        """Save user WITH resume data in users collection (original approach)"""
+    def _save_user_resume(self, name, resume_data, original_resume=None):
+        """Save user WITH resume data in users collection"""
         try:
             print(f"      👤 Processing user with resume: {name}")
             
             # Check if user already exists by name
             existing_user = self.users_collection.find_one({"name": name})
+            
+            # Prepare resume storage with both formats
+            resume_storage = {
+                "processed_data": resume_data,  # Parsed data for analysis
+                "original_format": original_resume,  # Original uploaded format
+                "upload_timestamp": datetime.utcnow()
+            }
             
             if existing_user:
                 # Update existing user's resume data
@@ -145,7 +147,7 @@ class DatabaseManager:
                     {"_id": existing_user["_id"]},
                     {
                         "$set": {
-                            "resume_data": resume_data,
+                            "resume_data": resume_storage,
                             "updated_at": datetime.utcnow()
                         }
                     }
@@ -158,7 +160,7 @@ class DatabaseManager:
                     "name": name,
                     "email": None,  # Guest user
                     "password": None,
-                    "resume_data": resume_data,    # Resume data stored here
+                    "resume_data": resume_storage,    # Resume data stored here
                     "created_at": datetime.utcnow(),
                     "updated_at": datetime.utcnow()
                 }
@@ -171,46 +173,6 @@ class DatabaseManager:
             print(f"      ❌ Error saving user with resume: {e}")
             import traceback
             traceback.print_exc()
-            return None
-    
-    def _save_resume_separately(self, user_id, name, resume_data):
-        """ALSO save resume data to separate resumes table"""
-        try:
-            print(f"      📄 Also saving resume separately for: {name}")
-            
-            # Check if resume already exists for this user
-            existing_resume = self.resumes_collection.find_one({"user_ref": user_id})
-            
-            if existing_resume:
-                # Update existing separate resume
-                self.resumes_collection.update_one(
-                    {"_id": existing_resume["_id"]},
-                    {
-                        "$set": {
-                            "resume_data": resume_data,
-                            "updated_at": datetime.utcnow()
-                        }
-                    }
-                )
-                print(f"      🔄 Updated separate resume for: {name}")
-                return existing_resume["_id"]
-            else:
-                # Create new separate resume
-                resume_doc = {
-                    "user_ref": user_id,           # Reference to user
-                    "candidate_name": name,        # For easy searching
-                    "resume_data": resume_data,
-                    "created_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow()
-                }
-                
-                result = self.resumes_collection.insert_one(resume_doc)
-                print(f"      ➕ Created separate resume for: {name} with _id: {result.inserted_id}")
-                return result.inserted_id
-                
-        except Exception as e:
-            print(f"      ⚠️ Error saving separate resume: {e}")
-            # Don't fail the whole process if separate resume save fails
             return None
     
     def _save_job(self, job_title, company, job_requirements):
@@ -248,51 +210,55 @@ class DatabaseManager:
             return None
     
     # Resume management methods
-    def get_resume_by_user_id(self, user_id):
-        """Get resume from separate resumes table"""
-        try:
-            return self.resumes_collection.find_one({"user_ref": ObjectId(user_id)})
-        except Exception as e:
-            print(f"Error getting separate resume: {e}")
-            return None
-    
     def get_user_with_resume(self, user_id):
-        """Get user with embedded resume data from users table"""
+        """Get user with resume data from users table"""
         try:
             return self.users_collection.find_one({"_id": ObjectId(user_id)})
         except Exception as e:
             print(f"Error getting user with resume: {e}")
             return None
     
-    def get_all_resumes(self, limit=100):
-        """Get all resumes from separate resumes table"""
-        try:
-            resumes = list(self.resumes_collection.find().sort("created_at", -1).limit(limit))
-            print(f"    📄 Found {len(resumes)} resumes in separate table")
-            return resumes
-        except Exception as e:
-            print(f"Error getting resumes: {e}")
-            return []
-    
     def get_all_users_with_resumes(self, limit=100):
-        """Get all users with embedded resume data"""
+        """Get all users with resume data"""
         try:
             users = list(self.users_collection.find({"resume_data": {"$exists": True}}).sort("created_at", -1).limit(limit))
-            print(f"    👤 Found {len(users)} users with embedded resume data")
+            print(f"    👤 Found {len(users)} users with resume data")
             return users
         except Exception as e:
             print(f"Error getting users with resumes: {e}")
             return []
     
-    def search_resumes_by_skills(self, skills):
-        """Search resumes by skills in separate resumes table"""
+    def search_users_by_skills(self, skills):
+        """Search users by skills in their processed resume data"""
         try:
-            query = {"resume_data.skills": {"$in": skills}}
-            resumes = list(self.resumes_collection.find(query))
-            return resumes
+            query = {"resume_data.processed_data.skills": {"$in": skills}}
+            users = list(self.users_collection.find(query))
+            return users
         except Exception as e:
-            print(f"Error searching resumes: {e}")
+            print(f"Error searching users by skills: {e}")
             return []
+    
+    def get_original_resume(self, user_id):
+        """Get the original uploaded resume format for a user"""
+        try:
+            user = self.users_collection.find_one({"_id": ObjectId(user_id)})
+            if user and "resume_data" in user and "original_format" in user["resume_data"]:
+                return user["resume_data"]["original_format"]
+            return None
+        except Exception as e:
+            print(f"Error getting original resume: {e}")
+            return None
+    
+    def get_processed_resume(self, user_id):
+        """Get the processed resume data for a user"""
+        try:
+            user = self.users_collection.find_one({"_id": ObjectId(user_id)})
+            if user and "resume_data" in user and "processed_data" in user["resume_data"]:
+                return user["resume_data"]["processed_data"]
+            return None
+        except Exception as e:
+            print(f"Error getting processed resume: {e}")
+            return None
     
     # Existing methods (unchanged)
     def get_user_by_email(self, email):
@@ -352,42 +318,64 @@ class DatabaseManager:
         except Exception as e:
             print(f"    ❌ Error comparing candidates: {e}")
             return []
+    
+    def get_all_jobs(self):
+        try:
+            jobs_cursor = self.jobs_collection.find()
+            jobs = []
+
+            for job_doc in jobs_cursor:
+                jobs.append({
+                    "id": str(job_doc.get("_id")),
+                    "title": job_doc.get("job_title", ""),
+                    "company": job_doc.get("company", ""),
+                    #"description": self._format_job_requirements(job_doc.get("job_requirements", {}))
+                    "created":job_doc.get("created_at", "")
+                })
+
+            return jobs
+
+        except Exception as e:
+            print(f"Error fetching jobs: {e}")
+            return []
+    
+    def _format_job_requirements(self, reqs):
+        try:
+            if isinstance(reqs, dict):
+                lines = []
+                for key, value in reqs.items():
+                    lines.append(f"{key}: {value}")
+                return "\n".join(lines)
+            return str(reqs)
+        except Exception as e:
+            print("Error formatting job requirements:", e)
+            return "N/A"
 
 
-# DUAL STORAGE Schema Documentation
+# Schema Documentation
 """
-DUAL RESUME STORAGE DATABASE STRUCTURE:
+DATABASE STRUCTURE:
 
-1. users collection (WITH resume data):
+1. users collection (added both original and processed resume data):
 {
     "_id": ObjectId("auto-generated"),
     "name": "John Doe",
     "email": null,
     "password": null,
-    "resume_data": {                    // ← Resume data stored HERE
-        "skills": [...],
-        "experience": [...],
-        "education": [...]
+    "resume_data": {
+        "processed_data": {             // ← Parsed data for analysis
+            "skills": [...],
+            "experience": [...],
+            "education": [...]
+        },
+        "original_format": "...",       // ← Original uploaded format (text/binary)
+        "upload_timestamp": ISODate
     },
     "created_at": ISODate,
     "updated_at": ISODate
 }
 
-2. resumes collection (SEPARATE resume table):
-{
-    "_id": ObjectId("auto-generated"),
-    "user_ref": ObjectId,               // Reference to users._id
-    "candidate_name": "John Doe",       // For easy searching
-    "resume_data": {                    // ← SAME resume data stored HERE TOO
-        "skills": [...],
-        "experience": [...],
-        "education": [...]
-    },
-    "created_at": ISODate,
-    "updated_at": ISODate
-}
-
-3. jobs collection:
+2. jobs collection:
 {
     "_id": ObjectId("auto-generated"),
     "job_title": "Software Engineer", 
@@ -396,11 +384,10 @@ DUAL RESUME STORAGE DATABASE STRUCTURE:
     "created_at": ISODate
 }
 
-4. analyses collection:
+3. analyses collection:
 {
     "_id": ObjectId("auto-generated"),
     "user_ref": ObjectId,               // Reference to users._id
-    "resume_ref": ObjectId,             // Reference to resumes._id
     "job_ref": ObjectId,                // Reference to jobs._id
     "match_score": 85,
     "explanation": "...",
@@ -408,14 +395,7 @@ DUAL RESUME STORAGE DATABASE STRUCTURE:
     "name": "John Doe",                 // Legacy fields
     "job_title": "Software Engineer",
     "company": "Tech Corp",
-    "resume_data": {...},               // Legacy - duplicated
+    "resume_data": {...},               // Legacy - duplicated processed data
     "job_requirements": {...}           // Legacy - duplicated
 }
-
-BENEFITS:
-- Backward compatibility (resume data still in users)
-- Dedicated resumes table for easier resume management
-- Can query resumes independently
-- Can search resumes by skills, experience, etc.
-- References link everything together
 """

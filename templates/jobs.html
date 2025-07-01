@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Job Listings</title>
+</head>
+<body>
+  <h1>Available Job Postings</h1>
+
+  <form method="get" action="/jobs">
+    <input type="text" name="search" placeholder="Search by title or company" value="{{ search }}">
+    <button type="submit">Search</button>
+  </form>
+
+  {% if jobs %}
+    <ul>
+      {% for job in jobs %}
+        <li>
+          <h3>{{ job.title }} at {{ job.company }}</h3>
+          <p>{{ job.description }}</p>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No jobs found.</p>
+  {% endif %}
+</body>
+</html>

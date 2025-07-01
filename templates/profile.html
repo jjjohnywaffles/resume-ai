@@ -1,0 +1,48 @@
+<!--
+File: templates/profile.html
+Author: Lavin Ma
+Date Created: 6/24/25
+Last Modified: 6/25/25
+Description: User profile page showing account info and analysis history
+-->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="auth-container">
+    <h2>User Profile</h2>
+
+    <div class="form-group">
+        <label><strong>Name:</strong></label>
+        <p>{{ user.name }}</p>
+    </div>
+
+    <div class="form-group">
+        <label><strong>Email:</strong></label>
+        <p>{{ user.email }}</p>
+    </div>
+
+    <div class="form-group">
+        <label><strong>Resume Uploaded:</strong></label>
+        {% if user.resume_data %}
+            <p>✅ Yes</p>
+        {% else %}
+            <p>❌ Not yet uploaded</p>
+        {% endif %}
+    </div>
+
+    <hr>
+
+    <h3>Past Resume Analyses</h3>
+    {% if reports %}
+        {% for report in reports %}
+            <div class="form-group">
+                <p><strong>{{ report.job_title }}</strong> at {{ report.company }}</p>
+                <p>Score: {{ report.match_score }} | Date: {{ report.timestamp }}</p>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No reports yet. Submit your first resume to begin.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -2,10 +2,10 @@
 File: analyzer.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/25/25 (Updated for Claude API with full async support and caching)
-Description: AI analysis module that interfaces with Anthropic's Claude model to extract
+Last Modified: 6/19/25 (Updated for OpenAI v1.0+ with full async support and caching)
+Description: AI analysis module that interfaces with OpenAI's GPT model to extract
              structured data from resumes and job descriptions, then calculates
-             compatibility scores with detailed explanations. Now uses Claude API
+             compatibility scores with detailed explanations. Now uses OpenAI v1.0+
              with async processing and caching for maximum performance.
 Classes:
     - ResumeAnalyzer: Main class for AI-powered resume and job analysis
@@ -18,10 +18,9 @@ Methods:
     - get_detailed_analysis(): Get both score and explanation
     - analyze_resume_job_match_fast(): Complete analysis workflow (optimized)
 """
-
 import json
 import asyncio
-import anthropic
+import openai
 import re
 import concurrent.futures
 from threading import Lock
@@ -31,18 +30,18 @@ from config import get_config
 config = get_config()
 
 class ResumeAnalyzer:
-    """Main resume analysis class with Claude API async processing and caching"""
+    """Main resume analysis class with OpenAI v1.0+ async processing and caching"""
     
     def __init__(self):
-        if not config.ANTHROPIC_API_KEY:
-            raise ValueError("Anthropic API key not found. Please check your .env file.")
+        if not config.OPENAI_API_KEY:
+            raise ValueError("OpenAI API key not found. Please check your .env file.")
         
-        # Initialize both sync and async Claude clients
-        self.client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
-        self.async_client = anthropic.AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
+        # Initialize both sync and async OpenAI clients for v1.0+
+        self.client = openai.OpenAI(api_key=config.OPENAI_API_KEY)
+        self.async_client = openai.AsyncOpenAI(api_key=config.OPENAI_API_KEY)
         
         self._api_lock = Lock()  # Thread safety for sync API calls
-        print("Using Claude API with async support")
+        print("Using OpenAI v1.0+ with async support")
         
         # Simple in-memory cache for repeated analyses
         self._cache = {}
@@ -90,11 +89,12 @@ class ResumeAnalyzer:
             print("CACHE HIT - Resume Analysis")
             return cached_result
         
-        prompt = f"""Analyze the following resume text and extract key information in JSON format. Remove all markdown formatting.
-
+        prompt = f"""
+        Analyze the following resume text and extract key information in JSON format. Remove all markdown formatting.
+        
         Resume text:
         {resume_text}
-
+        
         Please return a JSON object with the following structure:
         {{
             "skills": ["skill1", "skill2", "skill3"],
@@ -114,19 +114,20 @@ class ResumeAnalyzer:
                 }}
             ]
         }}
-
-        Only return the JSON object, no additional text, no markdown formatting."""
+        
+        Only return the JSON object, no additional text, no markdown formatting.
+        """
         
         try:
             print("ASYNC API CALL - Resume Analysis...")
-            response = await self.async_client.messages.create(
-                model="claude-3-5-haiku-20241022",
-                max_tokens=1000,
+            response = await self.async_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                messages=[{"role": "user", "content": prompt}]
+                max_tokens=1000
             )
             
-            content = response.content[0].text
+            content = response.choices[0].message.content
             parsed_json = json.loads(content)
             
             # Cache the result
@@ -154,7 +155,7 @@ class ResumeAnalyzer:
     
     # IF ASYNC FAILS (it shouldn't tho)
     def _extract_resume_data_sync(self, resume_text):
-        """Sync fallback version using Claude API"""
+        """Sync fallback version using OpenAI v1.0+ API"""
         cache_key = f"resume_{self._get_cache_key(resume_text)}"
         cached_result = self._cache_get(cache_key)
         
@@ -162,11 +163,12 @@ class ResumeAnalyzer:
             print("CACHE HIT - Resume Analysis (Sync)")
             return cached_result
         
-        prompt = f"""Analyze the following resume text and extract key information in JSON format. Remove all markdown formatting.
-
+        prompt = f"""
+        Analyze the following resume text and extract key information in JSON format. Remove all markdown formatting.
+        
         Resume text:
         {resume_text}
-
+        
         Please return a JSON object with the following structure:
         {{
             "skills": ["skill1", "skill2", "skill3"],
@@ -186,19 +188,20 @@ class ResumeAnalyzer:
                 }}
             ]
         }}
-
-        Only return the JSON object, no additional text, no markdown formatting."""
+        
+        Only return the JSON object, no additional text, no markdown formatting.
+        """
         
         try:
             print("SYNC API CALL - Resume Analysis...")
-            response = self.client.messages.create(
-                model="claude-3-5-haiku-20241022",
-                max_tokens=1500,
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
-                messages=[{"role": "user", "content": prompt}]
+                max_tokens=1500
             )
             
-            content = response.content[0].text
+            content = response.choices[0].message.content
             parsed_json = json.loads(content)
             
             # Cache the result
@@ -223,11 +226,12 @@ class ResumeAnalyzer:
             print("CACHE HIT - Job Analysis")
             return cached_result
         
-        prompt = f"""Analyze the following job description and extract key requirements in JSON format. Remove all markdown formatting.
-
+        prompt = f"""
+        Analyze the following job description and extract key requirements in JSON format. Remove all markdown formatting.
+        
         Job description:
         {job_description}
-
+        
         Please return a JSON object with the following structure:
         {{
             "required_skills": ["skill1", "skill2", "skill3"],
@@ -236,19 +240,20 @@ class ResumeAnalyzer:
             "education_required": "Degree requirement",
             "responsibilities": ["responsibility1", "responsibility2"]
         }}
-
-        Only return the JSON object, no additional text."""
+        
+        Only return the JSON object, no additional text.
+        """
         
         try:
             print("ASYNC API CALL - Job Analysis...")
-            response = await self.async_client.messages.create(
-                model="claude-3-5-haiku-20241022",
-                max_tokens=1000,
+            response = await self.async_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                messages=[{"role": "user", "content": prompt}]
+                max_tokens=1000
             )
             
-            content = response.content[0].text
+            content = response.choices[0].message.content
             parsed_json = json.loads(content)
             
             # Cache the result
@@ -274,7 +279,7 @@ class ResumeAnalyzer:
             return self._extract_job_requirements_sync(job_description)
     
     def _extract_job_requirements_sync(self, job_description):
-        """Sync fallback version using Claude API"""
+        """Sync fallback version using OpenAI v1.0+ API"""
         cache_key = f"job_{self._get_cache_key(job_description)}"
         cached_result = self._cache_get(cache_key)
         
@@ -282,11 +287,12 @@ class ResumeAnalyzer:
             print("CACHE HIT - Job Analysis (Sync)")
             return cached_result
         
-        prompt = f"""Analyze the following job description and extract key requirements in JSON format. Remove all markdown formatting.
-
+        prompt = f"""
+        Analyze the following job description and extract key requirements in JSON format. Remove all markdown formatting.
+        
         Job description:
         {job_description}
-
+        
         Please return a JSON object with the following structure:
         {{
             "required_skills": ["skill1", "skill2", "skill3"],
@@ -295,19 +301,20 @@ class ResumeAnalyzer:
             "education_required": "Degree requirement",
             "responsibilities": ["responsibility1", "responsibility2"]
         }}
-
-        Only return the JSON object, no additional text."""
+        
+        Only return the JSON object, no additional text.
+        """
         
         try:
             print("SYNC API CALL - Job Analysis...")
-            response = self.client.messages.create(
-                model="claude-3-5-haiku-20241022",
-                max_tokens=1500,
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
-                messages=[{"role": "user", "content": prompt}]
+                max_tokens=1500
             )
             
-            content = response.content[0].text
+            content = response.choices[0].message.content
             parsed_json = json.loads(content)
             
             # Cache the result
@@ -485,21 +492,22 @@ class ResumeAnalyzer:
     
     async def explain_match_score_async(self, resume_data, job_requirements):
         """Async version of detailed score calculation"""
-        prompt = f"""You are a precise HR scoring system. Calculate a compatibility score from 1-100 using EXACTLY the formula below.
+        prompt = f"""
+        You are a precise HR scoring system. Calculate a compatibility score from 1-100 using EXACTLY the formula below.
         Be mathematically consistent - the same inputs should always produce the same score.
 
         MANDATORY SCORING FORMULA (follow exactly):
-
+        
         1. BASE SCORE: Always start with 100 points
-
+        
         2. REQUIRED SKILLS SCORING:
         For EACH required skill, evaluate if it's:
         - FULLY SATISFIED (0 deduction): Exact match OR equivalent (Python=Django/Flask, JavaScript=React/Node.js, Database=SQL/MySQL, Data Preprocessing=cleaning/quality)
         - PARTIALLY SATISFIED (-7 points): Related skill or transferable experience 
         - NOT SATISFIED (-15 points): No relevant skills or experience found
-
+        
         Maximum deduction: -45 points (cap at 3 major missing skills)
-
+        
         3. EXPERIENCE SCORING:
         Calculate experience gap:
         - Meets or exceeds requirement: 0 deduction
@@ -508,14 +516,14 @@ class ResumeAnalyzer:
         - Under 50% of required: -30 points
         - Experience completely unrelated to role: additional -15 points
         Maximum deduction: -45 points
-
+        
         4. EDUCATION SCORING:
         - Meets requirement exactly: 0 deduction
         - Related field or higher degree: -5 points
         - Unrelated field: -10 points
         - Missing required degree entirely: -20 points
         Maximum deduction: -20 points
-
+        
         5. BONUS POINTS:
         - Each preferred skill matched: +3 points
         - Exceeds experience requirement significantly: +5 points
@@ -552,23 +560,27 @@ class ResumeAnalyzer:
 
         Resume Data:
         {json.dumps(resume_data, indent=2)}
-
-        Job Requirements:
-        {json.dumps(job_requirements, indent=2)}"""
         
-        system_message = "You are a precise mathematical scoring system. Always follow the exact formula provided. Be consistent - identical inputs must produce identical outputs. Provide detailed breakdowns showing your work. CRITICAL: Ensure your final score matches your calculation exactly."
+        Job Requirements:
+        {json.dumps(job_requirements, indent=2)}
+        """
         
         try:
             print("ASYNC API CALL - Detailed Score Calculation...")
-            response = await self.async_client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=2000,
+            response = await self.async_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are a precise mathematical scoring system. Always follow the exact formula provided. Be consistent - identical inputs must produce identical outputs. Provide detailed breakdowns showing your work. CRITICAL: Ensure your final score matches your calculation exactly."
+                    },
+                    {"role": "user", "content": prompt}
+                ],
                 temperature=0.0,
-                system=system_message,
-                messages=[{"role": "user", "content": prompt}]
+                max_tokens=2000
             )
             
-            content = response.content[0].text
+            content = response.choices[0].message.content
             print("ASYNC RESPONSE CONTENT FOR DEBUGGING:")
             print("="*50)
             print(content)
@@ -603,22 +615,23 @@ class ResumeAnalyzer:
             return self._explain_match_score_sync(resume_data, job_requirements)
     
     def _explain_match_score_sync(self, resume_data, job_requirements):
-        """Sync fallback version using Claude API"""
-        prompt = f"""You are a precise HR scoring system. Calculate a compatibility score from 1-100 using EXACTLY the formula below.
+        """Sync fallback version using OpenAI v1.0+ API"""
+        prompt = f"""
+        You are a precise HR scoring system. Calculate a compatibility score from 1-100 using EXACTLY the formula below.
         Be mathematically consistent - the same inputs should always produce the same score.
 
         MANDATORY SCORING FORMULA (follow exactly):
-
+        
         1. BASE SCORE: Always start with 100 points
-
+        
         2. REQUIRED SKILLS SCORING:
         For EACH required skill, evaluate if it's:
         - FULLY SATISFIED (0 deduction): Exact match OR equivalent (Python=Django/Flask, JavaScript=React/Node.js, Database=SQL/MySQL, Data Preprocessing=cleaning/quality)
         - PARTIALLY SATISFIED (-7 points): Related skill or transferable experience 
         - NOT SATISFIED (-15 points): No relevant skills or experience found
-
+        
         Maximum deduction: -45 points (cap at 3 major missing skills)
-
+        
         3. EXPERIENCE SCORING:
         Calculate experience gap:
         - Meets or exceeds requirement: 0 deduction
@@ -627,14 +640,14 @@ class ResumeAnalyzer:
         - Under 50% of required: -30 points
         - Experience completely unrelated to role: additional -15 points
         Maximum deduction: -45 points
-
+        
         4. EDUCATION SCORING:
         - Meets requirement exactly: 0 deduction
         - Related field or higher degree: -5 points
         - Unrelated field: -10 points
         - Missing required degree entirely: -20 points
         Maximum deduction: -20 points
-
+        
         5. BONUS POINTS:
         - Each preferred skill matched: +3 points
         - Exceeds experience requirement significantly: +5 points
@@ -671,23 +684,27 @@ class ResumeAnalyzer:
 
         Resume Data:
         {json.dumps(resume_data, indent=2)}
-
-        Job Requirements:
-        {json.dumps(job_requirements, indent=2)}"""
         
-        system_message = "You are a precise mathematical scoring system. Always follow the exact formula provided. Be consistent - identical inputs must produce identical outputs. Provide detailed breakdowns showing your work. CRITICAL: Ensure your final score matches your calculation exactly."
+        Job Requirements:
+        {json.dumps(job_requirements, indent=2)}
+        """
         
         try:
             print("SYNC API CALL - Detailed Score Calculation...")
-            response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=3000,
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are a precise mathematical scoring system. Always follow the exact formula provided. Be consistent - identical inputs must produce identical outputs. Provide detailed breakdowns showing your work. CRITICAL: Ensure your final score matches your calculation exactly."
+                    },
+                    {"role": "user", "content": prompt}
+                ],
                 temperature=0.0,
-                system=system_message,
-                messages=[{"role": "user", "content": prompt}]
+                max_tokens=3000
             )
             
-            content = response.content[0].text
+            content = response.choices[0].message.content
             print("SYNC RESPONSE CONTENT FOR DEBUGGING:")
             print("="*50)
             print(content)
@@ -883,9 +900,9 @@ class ResumeAnalyzer:
     async def analyze_resume_job_match_fast_async(self, resume_text, job_description):
         """
         ASYNC VERSION: Complete analysis workflow with full async processing
-        This is the fastest possible version using Claude API async capabilities
+        This is the fastest possible version using OpenAI v1.0+ async capabilities
         """
-        print("STARTING ASYNC ANALYSIS WORKFLOW...")
+        print("STARTING ULTRA-FAST ASYNC ANALYSIS WORKFLOW...")
         
         try:
             # Extract data concurrently

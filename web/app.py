@@ -2,7 +2,7 @@
 File: app.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/18/25
+Last Modified: 6/25/25
 Description: Main Flask application server for the Resume Analyzer web application.
              Handles HTTP routes, file uploads, and coordinates between the AI analyzer,
              database, and PDF reader components to provide resume-job matching analysis.
@@ -32,10 +32,32 @@ from flask_login import LoginManager
 
 from .auth import auth as auth_blueprint 
 
+ai_analyzer = None
+db_manager = None
+pdf_reader = None # just added 
+
+def filter_by_search_term(jobs, search_term):
+    if not search_term:
+        return jobs
+    search_term = search_term.lower()
+    filtered = []
+
+    for job in jobs:
+        title = job.get("title", "").lower()
+        description = job.get("description", "").lower()
+
+        if search_term in title or search_term in description:
+            filtered.append(job)
+    return filtered
+
 def create_app():
+    global ai_analyzer, db_manager, pdf_reader
     """Create and configure Flask application"""
     app = Flask(__name__, template_folder='../templates')
     
+    from web.routes import additional_routes  # adjust import if needed
+    app.register_blueprint(additional_routes)  # this makes /profile accessible
+
     # Get configuration
     config = get_config()
     app.secret_key = config.SECRET_KEY
@@ -112,6 +134,11 @@ def create_app():
                     'error': 'Please upload a PDF file'
                 }), 400
             
+            # CAPTURE ORIGINAL PDF CONTENT
+            file.seek(0)  # Ensure we're at the start of the file
+            original_pdf_content = file.read()  # Read the binary content
+            file.seek(0)  # Reset for saving to disk
+            
             # Save uploaded file temporarily
             filename = secure_filename(file.filename)
             temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -146,10 +173,18 @@ def create_app():
                 match_score = explanation_result["score"]
                 explanation = explanation_result["explanation"]
                 
-                # Save to database
+                # Save to database WITH ORIGINAL PDF CONTENT
+                original_resume_data = {
+                    'filename': filename,
+                    'content': original_pdf_content,
+                    'content_type': 'application/pdf',
+                    'extracted_text': resume_text
+                }
+                
                 db_manager.save_analysis(
                     name, resume_data, job_requirements, match_score,
-                    explanation, job_title, company
+                    explanation, job_title, company, 
+                    original_resume=original_resume_data  # ADD THIS LINE
                 )
                 
                 # Store in session for explanation view
@@ -220,6 +255,11 @@ def create_app():
                     'error': 'Please upload a PDF file'
                 }), 400
             
+            # CAPTURE ORIGINAL PDF CONTENT
+            file.seek(0)  # Ensure we're at the start of the file
+            original_pdf_content = file.read()  # Read the binary content
+            file.seek(0)  # Reset for saving to disk
+            
             # Save uploaded file temporarily
             filename = secure_filename(file.filename)
             temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -251,10 +291,18 @@ def create_app():
                 match_score = analysis_result["compatibility_score"]
                 explanation = analysis_result["detailed_explanation"]
                 
-                # Save to database
+                # Save to database WITH ORIGINAL PDF CONTENT
+                original_resume_data = {
+                    'filename': filename,
+                    'content': original_pdf_content,
+                    'content_type': 'application/pdf',
+                    'extracted_text': resume_text
+                }
+                
                 db_manager.save_analysis(
                     name, resume_data, job_requirements, match_score,
-                    explanation, job_title, company
+                    explanation, job_title, company,
+                    original_resume=original_resume_data  # ADD THIS LINE
                 )
                 
                 # Store in session for explanation view
@@ -362,6 +410,91 @@ def create_app():
             return jsonify({
                 'success': False,
                 'error': f'Failed to compare candidates: {str(e)}'
+            }), 500
+    
+    # ROUTES FOR RESUME MANAGEMENT
+    @app.route('/download_resume/<user_id>')
+    def download_resume(user_id):
+        """Download original resume file"""
+        if not db_manager:
+            return jsonify({
+                'success': False,
+                'error': 'Database not initialized'
+            }), 500
+        
+        try:
+            original_resume = db_manager.get_original_resume(user_id)
+            if not original_resume:
+                return jsonify({
+                    'success': False,
+                    'error': 'Resume not found'
+                }), 404
+            
+            from flask import make_response
+            response = make_response(original_resume['content'])
+            response.headers['Content-Type'] = original_resume.get('content_type', 'application/pdf')
+            response.headers['Content-Disposition'] = f'attachment; filename="{original_resume.get("filename", "resume.pdf")}"'
+            return response
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to download resume: {str(e)}'
+            }), 500
+    
+    @app.route('/jobs')
+    def show_jobs():
+        if not db_manager:
+            return jsonify({'success': False, 
+                            'error': 'Database not initialized'
+                            }), 500
+
+        search_query = request.args.get('search', '').strip()
+
+        try:
+            all_jobs = db_manager.get_all_jobs()
+            filtered_jobs = filter_by_search_term(all_jobs, search_query)
+            return render_template('jobs.html', jobs=filtered_jobs, search=search_query)
+
+        except Exception as e:
+            return jsonify({'success': False, 
+                            'error': f'Failed to retrieve jobs: {str(e)}'}), 
+            500
+
+    @app.route('/users_with_resumes')
+    def get_users_with_resumes():
+        """Get all users that have resumes"""
+        if not db_manager:
+            return jsonify({
+                'success': False,
+                'error': 'Database not initialized'
+            }), 500
+        
+        try:
+            users = db_manager.get_all_users_with_resumes()
+            
+            # Format for display
+            formatted_users = []
+            for user in users:
+                resume_data = user.get('resume_data', {})
+                formatted_users.append({
+                    'user_id': str(user['_id']),
+                    'name': user.get('name', ''),
+                    'has_original_resume': 'original_format' in resume_data,
+                    'filename': resume_data.get('original_format', {}).get('filename', 'N/A') if isinstance(resume_data.get('original_format'), dict) else 'N/A',
+                    'upload_date': resume_data.get('upload_timestamp', user.get('created_at', datetime.utcnow())).strftime('%Y-%m-%d %H:%M'),
+                    'created_at': user.get('created_at', datetime.utcnow()).strftime('%Y-%m-%d %H:%M')
+                })
+            
+            return jsonify({
+                'success': True,
+                'users': formatted_users
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to retrieve users: {str(e)}'
             }), 500
     
     @app.errorhandler(413)

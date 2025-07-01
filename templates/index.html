@@ -21,6 +21,14 @@ JavaScript Functions:
 <div class="container">
     <h1>Resume Analyzer</h1>
     
+    <!-- User Profile Button -->
+    <div style="margin-bottom: 15px;">
+        <a href="{{ url_for('additional.user_profile') }}" class="btn" style="text-decoration: none; padding: 10px 15px; background-color: #4CAF50; color: white; border-radius: 5px;">
+            👤 View Profile
+        </a>
+    </div>
+
+
     <form id="analyzeForm" enctype="multipart/form-data">
         <div class="form-group">
             <label for="name">Candidate Name:</label>

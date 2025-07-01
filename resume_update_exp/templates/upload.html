@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Resume Tailor</title>
+</head>
+<body>
+  <h1>Tailor Your Resume</h1>
+  <form method="POST" action="/upload" enctype="multipart/form-data">
+    <label>Resume PDF:<br>
+      <input type="file" name="resume" accept="application/pdf" required>
+    </label>
+    <br><br>
+    <label>Job Title:<br>
+      <input type="text" name="job_title" required style="width:400px;">
+    </label>
+    <br><br>
+    <label>Job Description:<br>
+      <textarea name="job_desc" rows="6" cols="60" required></textarea>
+    </label>
+    <br><br>
+    <button type="submit">Get Suggestions</button>
+  </form>
+</body>
+</html>
