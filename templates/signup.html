@@ -1,27 +1,490 @@
+<!--
+File: templates/signup.html
+Author: Enhanced Authentication System
+Date Created: 7/1/25
+Description: Enhanced signup page with password strength indicator and validation
+-->
+
 {% extends "base.html" %}
 
 {% block content %}
 <div class="auth-container">
-    <h2>Sign Up</h2>
-    <form method="POST" action="{{ url_for('auth.signup') }}">
-        <div class="form-group">
-            <label for="name">Full Name</label>
-            <input type="text" id="name" name="name" required>
+    <div class="auth-card">
+        <h2>Create Account</h2>
+        <p class="auth-subtitle">Join Resume Analyzer to track your job applications</p>
+        
+        <form method="POST" action="{{ url_for('auth.signup') }}" id="signupForm" novalidate>
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" name="name" required 
+                       placeholder="Enter your full name"
+                       value="{{ request.form.get('name', '') }}">
+                <div class="error-message" id="nameError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required 
+                       placeholder="Enter your email address"
+                       value="{{ request.form.get('email', '') }}">
+                <div class="error-message" id="emailError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="password-input-wrapper">
+                    <input type="password" id="password" name="password" required 
+                           placeholder="Create a strong password">
+                    <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                        <span id="passwordToggleText">👁️</span>
+                    </button>
+                </div>
+                <div class="password-strength-indicator">
+                    <div class="strength-bar">
+                        <div class="strength-fill" id="strengthFill"></div>
+                    </div>
+                    <div class="strength-text" id="strengthText">Password strength</div>
+                </div>
+                <div class="password-requirements">
+                    <div class="requirement" id="lengthReq">
+                        <span class="req-icon">❌</span> At least 8 characters
+                    </div>
+                    <div class="requirement" id="uppercaseReq">
+                        <span class="req-icon">❌</span> One uppercase letter
+                    </div>
+                    <div class="requirement" id="lowercaseReq">
+                        <span class="req-icon">❌</span> One lowercase letter
+                    </div>
+                    <div class="requirement" id="numberReq">
+                        <span class="req-icon">❌</span> One number
+                    </div>
+                </div>
+                <div class="error-message" id="passwordError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <div class="password-input-wrapper">
+                    <input type="password" id="confirm_password" name="confirm_password" required 
+                           placeholder="Confirm your password">
+                    <button type="button" class="password-toggle" onclick="togglePassword('confirm_password')">
+                        <span id="confirmToggleText">👁️</span>
+                    </button>
+                </div>
+                <div class="error-message" id="confirmPasswordError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-container">
+                    <input type="checkbox" id="agreeTerms" required>
+                    <span class="checkmark"></span>
+                    I agree to the <a href="#" onclick="showTerms()">Terms of Service</a> and <a href="#" onclick="showPrivacy()">Privacy Policy</a>
+                </label>
+                <div class="error-message" id="termsError"></div>
+            </div>
+            
+            <button type="submit" class="auth-btn primary" id="signupBtn">
+                <span class="btn-text">Create Account</span>
+                <span class="btn-loading" style="display: none;">Creating account...</span>
+            </button>
+        </form>
+        
+        <div class="auth-links">
+            <p>Already have an account? <a href="{{ url_for('auth.login') }}">Sign in here</a></p>
         </div>
-        <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" required>
-        </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required>
-        </div>
-        <div class="form-group">
-            <label for="confirm_password">Confirm Password</label>
-            <input type="password" id="confirm_password" name="confirm_password" required>
-        </div>
-        <button type="submit" class="btn">Sign Up</button>
-    </form>
-    <p>Already have an account? <a href="{{ url_for('auth.login') }}">Login</a></p>
+    </div>
 </div>
+
+<!-- Terms Modal -->
+<div id="termsModal" class="modal" style="display: none;">
+    <div class="modal-content modal-large">
+        <span class="close" onclick="hideTerms()">&times;</span>
+        <h3>Terms of Service</h3>
+        <div class="modal-text">
+            <p><strong>Resume Analyzer Terms of Service</strong></p>
+            <p>By using Resume Analyzer, you agree to the following terms:</p>
+            <ul>
+                <li>You will provide accurate information when creating your account</li>
+                <li>You will not use the service for any illegal or unauthorized purpose</li>
+                <li>You understand that resume analysis is for guidance only</li>
+                <li>You retain ownership of your uploaded resume data</li>
+                <li>We reserve the right to improve our service and update these terms</li>
+            </ul>
+            <p>For questions about these terms, please contact our support team.</p>
+        </div>
+        <button type="button" class="auth-btn secondary" onclick="hideTerms()">Close</button>
+    </div>
+</div>
+
+<!-- Privacy Modal -->
+<div id="privacyModal" class="modal" style="display: none;">
+    <div class="modal-content modal-large">
+        <span class="close" onclick="hidePrivacy()">&times;</span>
+        <h3>Privacy Policy</h3>
+        <div class="modal-text">
+            <p><strong>Resume Analyzer Privacy Policy</strong></p>
+            <p>We respect your privacy and are committed to protecting your personal data:</p>
+            <ul>
+                <li>We collect only the information necessary to provide our service</li>
+                <li>Your resume data is securely stored and encrypted</li>
+                <li>We do not share your personal information with third parties</li>
+                <li>You can request deletion of your data at any time</li>
+                <li>We use industry-standard security measures to protect your data</li>
+            </ul>
+            <p>For detailed information about our data practices, please contact us.</p>
+        </div>
+        <button type="button" class="auth-btn secondary" onclick="hidePrivacy()">Close</button>
+    </div>
+</div>
+
+<style>
+/* Inherit styles from login.html and add specific signup styles */
+.password-strength-indicator {
+    margin-top: 8px;
+}
+
+.strength-bar {
+    width: 100%;
+    height: 4px;
+    background-color: #e0e0e0;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.strength-fill {
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    border-radius: 2px;
+}
+
+.strength-text {
+    font-size: 0.8rem;
+    margin-top: 4px;
+    color: #666;
+}
+
+.password-requirements {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border-left: 3px solid #e0e0e0;
+}
+
+.requirement {
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+    color: #666;
+    display: flex;
+    align-items: center;
+}
+
+.requirement:last-child {
+    margin-bottom: 0;
+}
+
+.req-icon {
+    margin-right: 8px;
+    font-size: 0.7rem;
+}
+
+.requirement.met {
+    color: #27ae60;
+}
+
+.requirement.met .req-icon {
+    content: '✅';
+}
+
+.modal-large {
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-text {
+    margin: 20px 0;
+    line-height: 1.6;
+}
+
+.modal-text ul {
+    padding-left: 20px;
+}
+
+.modal-text li {
+    margin-bottom: 8px;
+}
+
+/* Strength levels */
+.strength-weak {
+    background-color: #e74c3c;
+    width: 25%;
+}
+
+.strength-fair {
+    background-color: #f39c12;
+    width: 50%;
+}
+
+.strength-good {
+    background-color: #f1c40f;
+    width: 75%;
+}
+
+.strength-strong {
+    background-color: #27ae60;
+    width: 100%;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('signupForm');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm_password');
+    const agreeTermsInput = document.getElementById('agreeTerms');
+    const signupBtn = document.getElementById('signupBtn');
+    const btnText = signupBtn.querySelector('.btn-text');
+    const btnLoading = signupBtn.querySelector('.btn-loading');
+    
+    // Real-time validation
+    nameInput.addEventListener('blur', validateName);
+    emailInput.addEventListener('blur', validateEmail);
+    passwordInput.addEventListener('input', updatePasswordStrength);
+    passwordInput.addEventListener('blur', validatePassword);
+    confirmPasswordInput.addEventListener('blur', validateConfirmPassword);
+    agreeTermsInput.addEventListener('change', validateTerms);
+    
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Validate all fields
+        const isNameValid = validateName();
+        const isEmailValid = validateEmail();
+        const isPasswordValid = validatePassword();
+        const isConfirmPasswordValid = validateConfirmPassword();
+        const isTermsValid = validateTerms();
+        
+        if (isNameValid && isEmailValid && isPasswordValid && isConfirmPasswordValid && isTermsValid) {
+            submitForm();
+        }
+    });
+    
+    function validateName() {
+        const name = nameInput.value.trim();
+        const nameError = document.getElementById('nameError');
+        
+        if (!name) {
+            showError(nameInput, nameError, 'Full name is required');
+            return false;
+        }
+        
+        if (name.length < 2) {
+            showError(nameInput, nameError, 'Name must be at least 2 characters');
+            return false;
+        }
+        
+        hideError(nameInput, nameError);
+        return true;
+    }
+    
+    function validateEmail() {
+        const email = emailInput.value.trim();
+        const emailError = document.getElementById('emailError');
+        
+        if (!email) {
+            showError(emailInput, emailError, 'Email is required');
+            return false;
+        }
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            showError(emailInput, emailError, 'Please enter a valid email address');
+            return false;
+        }
+        
+        hideError(emailInput, emailError);
+        return true;
+    }
+    
+    function validatePassword() {
+        const password = passwordInput.value;
+        const passwordError = document.getElementById('passwordError');
+        
+        if (!password) {
+            showError(passwordInput, passwordError, 'Password is required');
+            return false;
+        }
+        
+        const requirements = checkPasswordRequirements(password);
+        const allMet = Object.values(requirements).every(req => req);
+        
+        if (!allMet) {
+            showError(passwordInput, passwordError, 'Password does not meet all requirements');
+            return false;
+        }
+        
+        hideError(passwordInput, passwordError);
+        return true;
+    }
+    
+    function validateConfirmPassword() {
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        const confirmPasswordError = document.getElementById('confirmPasswordError');
+        
+        if (!confirmPassword) {
+            showError(confirmPasswordInput, confirmPasswordError, 'Please confirm your password');
+            return false;
+        }
+        
+        if (password !== confirmPassword) {
+            showError(confirmPasswordInput, confirmPasswordError, 'Passwords do not match');
+            return false;
+        }
+        
+        hideError(confirmPasswordInput, confirmPasswordError);
+        return true;
+    }
+    
+    function validateTerms() {
+        const termsError = document.getElementById('termsError');
+        
+        if (!agreeTermsInput.checked) {
+            showError(agreeTermsInput, termsError, 'You must agree to the terms to continue');
+            return false;
+        }
+        
+        hideError(agreeTermsInput, termsError);
+        return true;
+    }
+    
+    function updatePasswordStrength() {
+        const password = passwordInput.value;
+        const requirements = checkPasswordRequirements(password);
+        const strengthFill = document.getElementById('strengthFill');
+        const strengthText = document.getElementById('strengthText');
+        
+        // Update requirement indicators
+        updateRequirementIndicator('lengthReq', requirements.length);
+        updateRequirementIndicator('uppercaseReq', requirements.uppercase);
+        updateRequirementIndicator('lowercaseReq', requirements.lowercase);
+        updateRequirementIndicator('numberReq', requirements.number);
+        
+        // Calculate strength
+        const metRequirements = Object.values(requirements).filter(req => req).length;
+        
+        // Reset classes
+        strengthFill.className = 'strength-fill';
+        
+        if (password.length === 0) {
+            strengthText.textContent = 'Password strength';
+            strengthFill.style.width = '0%';
+        } else if (metRequirements === 1) {
+            strengthFill.classList.add('strength-weak');
+            strengthText.textContent = 'Weak password';
+        } else if (metRequirements === 2) {
+            strengthFill.classList.add('strength-fair');
+            strengthText.textContent = 'Fair password';
+        } else if (metRequirements === 3) {
+            strengthFill.classList.add('strength-good');
+            strengthText.textContent = 'Good password';
+        } else if (metRequirements === 4) {
+            strengthFill.classList.add('strength-strong');
+            strengthText.textContent = 'Strong password';
+        }
+    }
+    
+    function checkPasswordRequirements(password) {
+        return {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /\d/.test(password)
+        };
+    }
+    
+    function updateRequirementIndicator(reqId, isMet) {
+        const reqElement = document.getElementById(reqId);
+        const icon = reqElement.querySelector('.req-icon');
+        
+        if (isMet) {
+            reqElement.classList.add('met');
+            icon.textContent = '✅';
+        } else {
+            reqElement.classList.remove('met');
+            icon.textContent = '❌';
+        }
+    }
+    
+    function showError(input, errorElement, message) {
+        input.classList.add('error');
+        errorElement.textContent = message;
+        errorElement.classList.add('show');
+    }
+    
+    function hideError(input, errorElement) {
+        input.classList.remove('error');
+        errorElement.classList.remove('show');
+    }
+    
+    function submitForm() {
+        // Show loading state
+        signupBtn.disabled = true;
+        btnText.style.display = 'none';
+        btnLoading.style.display = 'inline';
+        
+        // Submit the form
+        form.submit();
+    }
+});
+
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    const toggleTextId = inputId === 'password' ? 'passwordToggleText' : 'confirmToggleText';
+    const toggle = document.getElementById(toggleTextId);
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        toggle.textContent = '🙈';
+    } else {
+        input.type = 'password';
+        toggle.textContent = '👁️';
+    }
+}
+
+function showTerms() {
+    document.getElementById('termsModal').style.display = 'block';
+}
+
+function hideTerms() {
+    document.getElementById('termsModal').style.display = 'none';
+}
+
+function showPrivacy() {
+    document.getElementById('privacyModal').style.display = 'block';
+}
+
+function hidePrivacy() {
+    document.getElementById('privacyModal').style.display = 'none';
+}
+
+// Close modals when clicking outside
+window.addEventListener('click', function(event) {
+    const termsModal = document.getElementById('termsModal');
+    const privacyModal = document.getElementById('privacyModal');
+    
+    if (event.target === termsModal) {
+        hideTerms();
+    }
+    if (event.target === privacyModal) {
+        hidePrivacy();
+    }
+});
+</script>
 {% endblock %}

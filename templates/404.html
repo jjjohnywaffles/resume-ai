@@ -1,0 +1,15 @@
+<!-- File: templates/404.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div style="text-align: center; padding: 50px 20px;">
+    <div style="font-size: 6rem; margin-bottom: 20px;">🔍</div>
+    <h1 style="color: #2c3e50; margin-bottom: 20px;">Page Not Found</h1>
+    <p style="color: #666; font-size: 1.1rem; margin-bottom: 30px;">
+        The page you're looking for doesn't exist or has been moved.
+    </p>
+    <a href="{{ url_for('index') }}" class="btn primary" style="text-decoration: none; padding: 12px 24px; background-color: #27ae60; color: white; border-radius: 6px; display: inline-block;">
+        🏠 Go Home
+    </a>
+</div>
+{% endblock %}
