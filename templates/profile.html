@@ -26,6 +26,9 @@ Description: User profile page showing account info and analysis history
         <label><strong>Resume Uploaded:</strong></label>
         {% if has_resume %}
             <p>✅ Yes</p>
+            {% if resume_filename %}
+                <p><strong>Current Resume:</strong> {{ resume_filename }}</p>
+            {% endif %}
             <button type="button" onclick="showResumeUpload()" class="btn">📝 Update Resume</button>
         {% else %}
             <p>❌ Not yet uploaded</p>

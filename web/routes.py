@@ -45,14 +45,22 @@ def profile():
     # Get user's analysis history
     user_analyses = db.get_user_analyses(current_user.id)
     
-    # Get user's resume status
+    # Get user's resume status and filename
     user_data = db.get_user_by_id(current_user.id)
     has_resume = user_data.get('resume_data') is not None if user_data else False
+    
+    # Extract resume filename if available
+    resume_filename = None
+    if has_resume and user_data.get('resume_data', {}).get('original_format'):
+        original_format = user_data['resume_data']['original_format']
+        if isinstance(original_format, dict) and 'filename' in original_format:
+            resume_filename = original_format['filename']
     
     return render_template('profile.html', 
                          user=current_user, 
                          reports=user_analyses,
-                         has_resume=has_resume)
+                         has_resume=has_resume,
+                         resume_filename=resume_filename)
 
 @profile_routes.route('/profile/update_resume', methods=['POST'])
 @login_required
@@ -117,46 +125,3 @@ def update_resume():
 
 # Register this blueprint in your main app with:
 # app.register_blueprint(profile_routes, url_prefix='/profile')
-
-
-"""
-File: routes.py
-Author: Lavin Ma
-Date Created: 6/24/25
-Last Modified: 6/24/25
-Description:
-Contains additional frontend routes for the ResumeMatchAI web app.
-
-Includes:
-- User Profile Page Route: Renders the user profile page with their info and analysis reports (using dummy information rn).
-"""
-
-from flask import render_template  # Make sure this is at the top with other imports
-
-# Add this new route to render the user profile page
-@profile_routes.route('/profile')
-def user_profile():
-    # Dummy user data for testing
-    user = {
-        "name": "Lavin Ma",
-        "email": "lavin@example.com",
-        "resume_data": True  # Change to False to test no resume case
-    }
-
-    # Dummy report data for testing
-    reports = [
-        {
-            "job_title": "Software Engineer",
-            "company": "Tech Corp",
-            "match_score": 87,
-            "timestamp": "2025-06-20"
-        },
-        {
-            "job_title": "Data Analyst",
-            "company": "Data Inc",
-            "match_score": 79,
-            "timestamp": "2025-06-10"
-        }
-    ]
-
-    return render_template('profile.html', user=user, reports=reports)
