@@ -18,7 +18,6 @@ Methods:
     - get_detailed_analysis(): Get both score and explanation
     - analyze_resume_job_match_fast(): Complete analysis workflow (optimized)
 """
-
 import json
 import asyncio
 import anthropic
