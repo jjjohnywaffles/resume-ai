@@ -325,6 +325,42 @@ class DatabaseManager:
             print(f"    ❌ Error getting user analyses: {e}")
             return []
     
+    def update_user_resume(self, user_id, resume_data, original_resume=None):
+        """Update user's resume data"""
+        try:
+            print(f"      👤 Updating resume for user: {user_id}")
+            
+            # Prepare resume storage with both formats
+            resume_storage = {
+                "processed_data": resume_data,  # Parsed data for analysis
+                "original_format": original_resume,  # Original uploaded format
+                "upload_timestamp": datetime.utcnow()
+            }
+            
+            # Update user's resume data
+            result = self.users_collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "resume_data": resume_storage,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            
+            if result.modified_count > 0:
+                print(f"      ✅ Resume updated successfully for user: {user_id}")
+                return True
+            else:
+                print(f"      ❌ No user found to update: {user_id}")
+                return False
+                
+        except Exception as e:
+            print(f"      ❌ Error updating user resume: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
     def get_all_analyses(self, limit=100):
         """Get all analyses from database"""
         try:

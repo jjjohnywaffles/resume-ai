@@ -24,7 +24,6 @@ from werkzeug.utils import secure_filename
 
 # Import from core modules (clean imports)
 from core.analyzer import ResumeAnalyzer
-from core.analyzer_demo import ResumeAnalyzerDemo
 from core.database import DatabaseManager, User
 from core.pdf_reader import PDFReader
 from config import get_config
@@ -67,18 +66,11 @@ def create_app():
     
     # Initialize components
     try:
-        # Try to initialize the real analyzer first
         ai_analyzer = ResumeAnalyzer()
         print("Using real ResumeAnalyzer with API keys")
     except Exception as e:
-        print(f"Real analyzer failed to initialize: {e}")
-        print("Falling back to demo analyzer...")
-        try:
-            ai_analyzer = ResumeAnalyzerDemo()
-        except Exception as demo_e:
-            print(f"Demo analyzer also failed: {demo_e}")
-            ai_analyzer = None
-    
+        print(f"Error initializing ResumeAnalyzer: {e}")
+        ai_analyzer = None
     try:
         db_manager = DatabaseManager()
         pdf_reader = PDFReader()
@@ -106,7 +98,13 @@ def create_app():
     @app.route('/')
     def index():
         """Main page - analyzer accessible to everyone"""
-        return render_template('index.html')
+        has_resume = False
+        if current_user.is_authenticated:
+            db = DatabaseManager()
+            user_data = db.get_user_by_id(current_user.id)
+            has_resume = user_data.get('resume_data') is not None if user_data else False
+        
+        return render_template('index.html', has_resume=has_resume)
     
     @app.route('/analyze', methods=['POST'])
     def analyze():
@@ -137,29 +135,53 @@ def create_app():
                     'error': 'Please fill in all required fields'
                 }), 400
             
-            # Handle file upload
-            if 'resume' not in request.files:
-                return jsonify({
-                    'success': False,
-                    'error': 'No resume file uploaded'
-                }), 400
+            # Handle resume input (file upload or saved resume)
+            resume_option = request.form.get('resume_option', 'upload')
             
-            file = request.files['resume']
-            if file.filename == '' or not file.filename.lower().endswith('.pdf'):
-                return jsonify({
-                    'success': False,
-                    'error': 'Please upload a PDF file'
-                }), 400
-            
-            # CAPTURE ORIGINAL PDF CONTENT
-            file.seek(0)  # Ensure we're at the start of the file
-            original_pdf_content = file.read()  # Read the binary content
-            file.seek(0)  # Reset for saving to disk
-            
-            # Save uploaded file temporarily
-            filename = secure_filename(file.filename)
-            temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(temp_path)
+            if resume_option == 'saved' and current_user.is_authenticated:
+                # Use saved resume
+                user_data = db_manager.get_user_by_id(current_user.id)
+                if not user_data or not user_data.get('resume_data'):
+                    return jsonify({
+                        'success': False,
+                        'error': 'No saved resume found. Please upload a resume first.'
+                    }), 400
+                
+                # Get saved resume data
+                saved_resume = user_data['resume_data']
+                resume_text = saved_resume.get('original_format', {}).get('extracted_text', '')
+                filename = saved_resume.get('original_format', {}).get('filename', 'saved_resume.pdf')
+                original_pdf_content = saved_resume.get('original_format', {}).get('content', b'')
+                
+                if not resume_text:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Saved resume text not found. Please upload a new resume.'
+                    }), 400
+            else:
+                # Handle file upload
+                if 'resume' not in request.files:
+                    return jsonify({
+                        'success': False,
+                        'error': 'No resume file uploaded'
+                    }), 400
+                
+                file = request.files['resume']
+                if file.filename == '' or not file.filename.lower().endswith('.pdf'):
+                    return jsonify({
+                        'success': False,
+                        'error': 'Please upload a PDF file'
+                    }), 400
+                
+                # CAPTURE ORIGINAL PDF CONTENT
+                file.seek(0)  # Ensure we're at the start of the file
+                original_pdf_content = file.read()  # Read the binary content
+                file.seek(0)  # Reset for saving to disk
+                
+                # Save uploaded file temporarily
+                filename = secure_filename(file.filename)
+                temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(temp_path)
             
             try:
                 # Extract text from resume
@@ -261,31 +283,54 @@ def create_app():
                     'error': 'Please fill in all required fields'
                 }), 400
             
-            # Handle file upload
-            if 'resume' not in request.files:
-                return jsonify({
-                    'success': False,
-                    'error': 'No resume file uploaded'
-                }), 400
+            # Handle resume input (file upload or saved resume)
+            resume_option = request.form.get('resume_option', 'upload')
             
-            file = request.files['resume']
-            if file.filename == '' or not file.filename.lower().endswith('.pdf'):
-                return jsonify({
-                    'success': False,
-                    'error': 'Please upload a PDF file'
-                }), 400
-            
-            # CAPTURE ORIGINAL PDF CONTENT
-            file.seek(0)  # Ensure we're at the start of the file
-            original_pdf_content = file.read()  # Read the binary content
-            file.seek(0)  # Reset for saving to disk
-            
-            # Save uploaded file temporarily
-            filename = secure_filename(file.filename)
-            temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(temp_path)
-            
-            try:
+            if resume_option == 'saved' and current_user.is_authenticated:
+                # Use saved resume
+                user_data = db_manager.get_user_by_id(current_user.id)
+                if not user_data or not user_data.get('resume_data'):
+                    return jsonify({
+                        'success': False,
+                        'error': 'No saved resume found. Please upload a resume first.'
+                    }), 400
+                
+                # Get saved resume data
+                saved_resume = user_data['resume_data']
+                resume_text = saved_resume.get('original_format', {}).get('extracted_text', '')
+                filename = saved_resume.get('original_format', {}).get('filename', 'saved_resume.pdf')
+                original_pdf_content = saved_resume.get('original_format', {}).get('content', b'')
+                
+                if not resume_text:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Saved resume text not found. Please upload a new resume.'
+                    }), 400
+            else:
+                # Handle file upload
+                if 'resume' not in request.files:
+                    return jsonify({
+                        'success': False,
+                        'error': 'No resume file uploaded'
+                    }), 400
+                
+                file = request.files['resume']
+                if file.filename == '' or not file.filename.lower().endswith('.pdf'):
+                    return jsonify({
+                        'success': False,
+                        'error': 'Please upload a PDF file'
+                    }), 400
+                
+                # CAPTURE ORIGINAL PDF CONTENT
+                file.seek(0)  # Ensure we're at the start of the file
+                original_pdf_content = file.read()  # Read the binary content
+                file.seek(0)  # Reset for saving to disk
+                
+                # Save uploaded file temporarily
+                filename = secure_filename(file.filename)
+                temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(temp_path)
+                
                 # Extract text from resume
                 resume_text = pdf_reader.extract_text_from_pdf(temp_path)
                 
@@ -294,65 +339,59 @@ def create_app():
                         'success': False,
                         'error': resume_text
                     }), 400
-                
-                # NEW: Use the complete fast analysis workflow
-                analysis_result = ai_analyzer.analyze_resume_job_match_fast(resume_text, job_description)
-                
-                # Check for analysis errors
-                if "error" in analysis_result:
-                    return jsonify({
-                        'success': False,
-                        'error': f'Analysis failed: {analysis_result["error"]}'
-                    }), 500
-                
-                # Extract results
-                resume_data = analysis_result["resume_data"]
-                job_requirements = analysis_result["job_requirements"]
-                match_score = analysis_result["compatibility_score"]
-                explanation = analysis_result["detailed_explanation"]
-                
-                # Save to database WITH ORIGINAL PDF CONTENT
-                original_resume_data = {
-                    'filename': filename,
-                    'content': original_pdf_content,
-                    'content_type': 'application/pdf',
-                    'extracted_text': resume_text
-                }
-                
-                # Save analysis - only save user_id if authenticated
-                user_id = current_user.id if current_user.is_authenticated else None
-                db_manager.save_analysis(
-                    name, resume_data, job_requirements, match_score,
-                    explanation, job_title, company,
-                    original_resume=original_resume_data,
-                    user_id=user_id
-                )
-                
-                # Store in session for explanation view
-                session['last_analysis'] = {
+            
+            # NEW: Use the complete fast analysis workflow
+            analysis_result = ai_analyzer.analyze_resume_job_match_fast(resume_text, job_description)
+            
+            # Check for analysis errors
+            if "error" in analysis_result:
+                return jsonify({
+                    'success': False,
+                    'error': f'Analysis failed: {analysis_result["error"]}'
+                }), 500
+            
+            # Extract results
+            resume_data = analysis_result["resume_data"]
+            job_requirements = analysis_result["job_requirements"]
+            match_score = analysis_result["compatibility_score"]
+            explanation = analysis_result["detailed_explanation"]
+            
+            # Save to database WITH ORIGINAL PDF CONTENT
+            original_resume_data = {
+                'filename': filename,
+                'content': original_pdf_content,
+                'content_type': 'application/pdf',
+                'extracted_text': resume_text
+            }
+            
+            # Save analysis - only save user_id if authenticated
+            user_id = current_user.id if current_user.is_authenticated else None
+            db_manager.save_analysis(
+                name, resume_data, job_requirements, match_score,
+                explanation, job_title, company,
+                original_resume=original_resume_data,
+                user_id=user_id
+            )
+            
+            # Store in session for explanation view
+            session['last_analysis'] = {
+                'name': name,
+                'job_title': job_title,
+                'company': company,
+                'explanation': explanation
+            }
+            
+            return jsonify({
+                'success': True,
+                'result': {
                     'name': name,
                     'job_title': job_title,
                     'company': company,
-                    'explanation': explanation
+                    'match_score': match_score,
+                    'resume_data': resume_data,
+                    'job_requirements': job_requirements
                 }
-                
-                return jsonify({
-                    'success': True,
-                    'result': {
-                        'name': name,
-                        'job_title': job_title,
-                        'company': company,
-                        'match_score': match_score,
-                        'resume_data': resume_data,
-                        'job_requirements': job_requirements
-                    }
-                })
-                
-            finally:
-                # Clean up temporary file
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
-                    
+            })
         except Exception as e:
             return jsonify({
                 'success': False,

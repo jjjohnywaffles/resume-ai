@@ -6,9 +6,14 @@ Last Modified: 6/15/25
 Description: Additional Routes Module for future expansion of web functionality
 """
 
-from flask import Blueprint, jsonify, render_template
+from flask import Blueprint, jsonify, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from core.database import DatabaseManager
+from core.pdf_reader import PDFReader
+from core.analyzer import ResumeAnalyzer
+from werkzeug.utils import secure_filename
+import os
+import tempfile
 
 # Create blueprint for profile and extra routes
 profile_routes = Blueprint('profile_routes', __name__)
@@ -48,6 +53,67 @@ def profile():
                          user=current_user, 
                          reports=user_analyses,
                          has_resume=has_resume)
+
+@profile_routes.route('/profile/update_resume', methods=['POST'])
+@login_required
+def update_resume():
+    """Handle resume upload/update for user profile"""
+    if 'resume' not in request.files:
+        flash('No resume file uploaded', 'error')
+        return redirect(url_for('profile_routes.profile'))
+    
+    file = request.files['resume']
+    if file.filename == '' or not file.filename.lower().endswith('.pdf'):
+        flash('Please upload a PDF file', 'error')
+        return redirect(url_for('profile_routes.profile'))
+    
+    try:
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(tempfile.gettempdir(), filename)
+        file.save(temp_path)
+        
+        # Extract text from resume
+        pdf_reader = PDFReader()
+        resume_text = pdf_reader.extract_text_from_pdf(temp_path)
+        
+        if resume_text.startswith("Error"):
+            flash(f'Error processing PDF: {resume_text}', 'error')
+            return redirect(url_for('profile_routes.profile'))
+        
+        # Extract resume data using AI
+        ai_analyzer = ResumeAnalyzer()
+        resume_data = ai_analyzer.extract_resume_data(resume_text)
+        
+        if "error" in resume_data:
+            flash(f'Error analyzing resume: {resume_data["error"]}', 'error')
+            return redirect(url_for('profile_routes.profile'))
+        
+        # Save to database
+        db = DatabaseManager()
+        original_resume_data = {
+            'filename': filename,
+            'content': file.read(),
+            'content_type': 'application/pdf',
+            'extracted_text': resume_text
+        }
+        
+        # Update user's resume data
+        success = db.update_user_resume(current_user.id, resume_data, original_resume_data)
+        
+        if success:
+            flash('Resume updated successfully!', 'success')
+        else:
+            flash('Error updating resume', 'error')
+        
+        # Clean up temporary file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+            
+    except Exception as e:
+        flash(f'Error processing resume: {str(e)}', 'error')
+    
+    return redirect(url_for('profile_routes.profile'))
 
 # Register this blueprint in your main app with:
 # app.register_blueprint(profile_routes, url_prefix='/profile')

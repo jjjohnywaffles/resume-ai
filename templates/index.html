@@ -59,7 +59,22 @@ JavaScript Functions:
         
         <div class="form-group">
             <label for="resume">Resume (PDF):</label>
-            <input type="file" id="resume" name="resume" accept=".pdf" required>
+            {% if current_user.is_authenticated and has_resume %}
+            <div style="margin-bottom: 10px;">
+                <label>
+                    <input type="radio" name="resume_option" value="upload" checked> Upload new resume
+                </label>
+                <label style="margin-left: 20px;">
+                    <input type="radio" name="resume_option" value="saved"> Use saved resume
+                </label>
+            </div>
+            {% endif %}
+            <input type="file" id="resume" name="resume" accept=".pdf" {% if not current_user.is_authenticated or not has_resume %}required{% endif %}>
+            {% if current_user.is_authenticated and has_resume %}
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                💡 You have a saved resume. Choose "Use saved resume" to analyze with your previously uploaded resume.
+            </p>
+            {% endif %}
         </div>
         
         <div class="form-group">

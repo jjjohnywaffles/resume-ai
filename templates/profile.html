@@ -26,9 +26,24 @@ Description: User profile page showing account info and analysis history
         <label><strong>Resume Uploaded:</strong></label>
         {% if has_resume %}
             <p>✅ Yes</p>
+            <button type="button" onclick="showResumeUpload()" class="btn">📝 Update Resume</button>
         {% else %}
             <p>❌ Not yet uploaded</p>
+            <button type="button" onclick="showResumeUpload()" class="btn">📤 Upload Resume</button>
         {% endif %}
+    </div>
+
+    <!-- Resume Upload Form (Hidden by default) -->
+    <div id="resumeUploadForm" style="display: none; margin-top: 20px; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
+        <h3>{% if has_resume %}Update{% else %}Upload{% endif %} Resume</h3>
+        <form method="POST" action="{{ url_for('profile_routes.update_resume') }}" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="resume">Resume (PDF):</label>
+                <input type="file" id="resume" name="resume" accept=".pdf" required>
+            </div>
+            <button type="submit" class="btn">{% if has_resume %}Update{% else %}Upload{% endif %} Resume</button>
+            <button type="button" onclick="hideResumeUpload()" class="btn" style="background-color: #95a5a6;">Cancel</button>
+        </form>
     </div>
 
     <hr>
@@ -63,4 +78,14 @@ Description: User profile page showing account info and analysis history
         <p>No reports yet. Submit your first resume to begin.</p>
     {% endif %}
 </div>
+
+<script>
+function showResumeUpload() {
+    document.getElementById('resumeUploadForm').style.display = 'block';
+}
+
+function hideResumeUpload() {
+    document.getElementById('resumeUploadForm').style.display = 'none';
+}
+</script>
 {% endblock %}
