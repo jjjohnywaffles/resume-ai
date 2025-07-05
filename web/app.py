@@ -115,6 +115,8 @@ def create_app():
                 'error': 'System not properly initialized. Please check configuration.'
             }), 500
         
+        temp_path = None  # Initialize temp_path to None
+        
         try:
             # Get form data - use current user's name if authenticated, otherwise use provided name
             name = request.form.get('name', '').strip()
@@ -167,7 +169,7 @@ def create_app():
                     }), 400
                 
                 file = request.files['resume']
-                if file.filename == '' or not file.filename.lower().endswith('.pdf'):
+                if not file or file.filename == '' or not file.filename.lower().endswith('.pdf'):
                     return jsonify({
                         'success': False,
                         'error': 'Please upload a PDF file'
@@ -183,82 +185,87 @@ def create_app():
                 temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(temp_path)
             
-            try:
-                # Extract text from resume
+            # Extract text from resume (use temp_path only if it exists)
+            if temp_path:
                 resume_text = pdf_reader.extract_text_from_pdf(temp_path)
-                
-                if resume_text.startswith("Error"):
-                    return jsonify({
-                        'success': False,
-                        'error': resume_text
-                    }), 400
-                
-                # UPDATED: Use concurrent extraction for speed improvement
-                extraction_result = ai_analyzer.extract_data_concurrent(resume_text, job_description)
-                
-                # Check for extraction errors
-                if "error" in extraction_result:
-                    return jsonify({
-                        'success': False,
-                        'error': f'Data extraction failed: {extraction_result["error"]}'
-                    }), 500
-                
-                # Extract the structured data from concurrent result
-                resume_data = extraction_result["resume_data"]
-                job_requirements = extraction_result["job_requirements"]
-                
-                # Get detailed explanation and score
-                explanation_result = ai_analyzer.explain_match_score(resume_data, job_requirements)
-                match_score = explanation_result["score"]
-                explanation = explanation_result["explanation"]
-                
-                # Save to database WITH ORIGINAL PDF CONTENT
-                original_resume_data = {
-                    'filename': filename,
-                    'content': original_pdf_content,
-                    'content_type': 'application/pdf',
-                    'extracted_text': resume_text
-                }
-                
-                # Save analysis - only save user_id if authenticated
-                user_id = current_user.id if current_user.is_authenticated else None
-                db_manager.save_analysis(
-                    name, resume_data, job_requirements, match_score,
-                    explanation, job_title, company, 
-                    original_resume=original_resume_data,
-                    user_id=user_id
-                )
-                
-                # Store in session for explanation view
-                session['last_analysis'] = {
+            else:
+                # For saved resumes, we already have the text
+                resume_text = resume_text  # This is already extracted from saved_resume
+            
+            if resume_text.startswith("Error"):
+                return jsonify({
+                    'success': False,
+                    'error': resume_text
+                }), 400
+            
+            # UPDATED: Use concurrent extraction for speed improvement
+            extraction_result = ai_analyzer.extract_data_concurrent(resume_text, job_description)
+            
+            # Check for extraction errors
+            if "error" in extraction_result:
+                return jsonify({
+                    'success': False,
+                    'error': f'Data extraction failed: {extraction_result["error"]}'
+                }), 500
+            
+            # Extract the structured data from concurrent result
+            resume_data = extraction_result["resume_data"]
+            job_requirements = extraction_result["job_requirements"]
+            
+            # Get detailed explanation and score
+            explanation_result = ai_analyzer.explain_match_score(resume_data, job_requirements)
+            match_score = explanation_result["score"]
+            explanation = explanation_result["explanation"]
+            
+            # Save to database WITH ORIGINAL PDF CONTENT
+            original_resume_data = {
+                'filename': filename,
+                'content': original_pdf_content,
+                'content_type': 'application/pdf',
+                'extracted_text': resume_text
+            }
+            
+            # Save analysis - only save user_id if authenticated
+            user_id = current_user.id if current_user.is_authenticated else None
+            db_manager.save_analysis(
+                name, resume_data, job_requirements, match_score,
+                explanation, job_title, company, 
+                original_resume=original_resume_data,
+                user_id=user_id
+            )
+            
+            # Store in session for explanation view
+            session['last_analysis'] = {
+                'name': name,
+                'job_title': job_title,
+                'company': company,
+                'explanation': explanation
+            }
+            
+            return jsonify({
+                'success': True,
+                'result': {
                     'name': name,
                     'job_title': job_title,
                     'company': company,
-                    'explanation': explanation
+                    'match_score': match_score,
+                    'resume_data': resume_data,
+                    'job_requirements': job_requirements
                 }
+            })
                 
-                return jsonify({
-                    'success': True,
-                    'result': {
-                        'name': name,
-                        'job_title': job_title,
-                        'company': company,
-                        'match_score': match_score,
-                        'resume_data': resume_data,
-                        'job_requirements': job_requirements
-                    }
-                })
-                
-            finally:
-                # Clean up temporary file
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
-                    
         except Exception as e:
             return jsonify({
                 'success': False,
                 'error': f'Analysis failed: {str(e)}'
             }), 500
+        finally:
+            # Clean up temporary file if it exists
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception as cleanup_error:
+                    print(f"Warning: Could not clean up temporary file {temp_path}: {cleanup_error}")
     
     @app.route('/analyze_fast', methods=['POST'])
     def analyze_fast():
@@ -268,6 +275,8 @@ def create_app():
                 'success': False,
                 'error': 'System not properly initialized. Please check configuration.'
             }), 500
+        
+        temp_path = None  # Initialize temp_path to None
         
         try:
             # Get form data
@@ -315,7 +324,7 @@ def create_app():
                     }), 400
                 
                 file = request.files['resume']
-                if file.filename == '' or not file.filename.lower().endswith('.pdf'):
+                if not file or file.filename == '' or not file.filename.lower().endswith('.pdf'):
                     return jsonify({
                         'success': False,
                         'error': 'Please upload a PDF file'
@@ -397,6 +406,13 @@ def create_app():
                 'success': False,
                 'error': f'Analysis failed: {str(e)}'
             }), 500
+        finally:
+            # Clean up temporary file if it exists
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception as cleanup_error:
+                    print(f"Warning: Could not clean up temporary file {temp_path}: {cleanup_error}")
     
     @app.route('/explanation')
     def get_explanation():

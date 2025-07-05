@@ -66,12 +66,14 @@ def profile():
 @login_required
 def update_resume():
     """Handle resume upload/update for user profile"""
+    temp_path = None  # Initialize temp_path to None
+    
     if 'resume' not in request.files:
         flash('No resume file uploaded', 'error')
         return redirect(url_for('profile_routes.profile'))
     
     file = request.files['resume']
-    if file.filename == '' or not file.filename.lower().endswith('.pdf'):
+    if not file or file.filename == '' or not file.filename.lower().endswith('.pdf'):
         flash('Please upload a PDF file', 'error')
         return redirect(url_for('profile_routes.profile'))
     
@@ -113,13 +115,16 @@ def update_resume():
             flash('Resume updated successfully!', 'success')
         else:
             flash('Error updating resume', 'error')
-        
-        # Clean up temporary file
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
             
     except Exception as e:
         flash(f'Error processing resume: {str(e)}', 'error')
+    finally:
+        # Clean up temporary file if it exists
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception as cleanup_error:
+                print(f"Warning: Could not clean up temporary file {temp_path}: {cleanup_error}")
     
     return redirect(url_for('profile_routes.profile'))
 
