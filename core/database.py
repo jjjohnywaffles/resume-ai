@@ -75,19 +75,20 @@ class DatabaseManager:
             raise
     
     def save_analysis(self, name, resume_data, job_requirements, match_score, 
-                 explanation, job_title, company, original_resume=None):
+                 explanation, job_title, company, original_resume=None, user_id=None):
         """
         Save analysis with resume in original uploaded format
         
         Args:
             original_resume: The resume in its original uploaded format (text, binary, etc.)
             resume_data: Parsed/processed resume data for analysis
+            user_id: Optional user ID for authenticated users
         """
         try:
             print(f"    💾 Saving analysis for: {name}")
             
             # Save user WITH resume data (both original and processed)
-            user_mongodb_id = self._save_user_resume(name, resume_data, original_resume)
+            user_mongodb_id = self._save_user_resume(name, resume_data, original_resume, user_id)
             if user_mongodb_id is None:
                 print(f"    ❌ User save failed - cannot continue")
                 return None
@@ -126,13 +127,17 @@ class DatabaseManager:
             traceback.print_exc()
             return None
     
-    def _save_user_resume(self, name, resume_data, original_resume=None):
+    def _save_user_resume(self, name, resume_data, original_resume=None, user_id=None):
         """Save user WITH resume data in users collection"""
         try:
             print(f"      👤 Processing user with resume: {name}")
             
-            # Check if user already exists by name
-            existing_user = self.users_collection.find_one({"name": name})
+            # If user_id is provided, use it to find the user
+            if user_id:
+                existing_user = self.users_collection.find_one({"_id": ObjectId(user_id)})
+            else:
+                # Check if user already exists by name
+                existing_user = self.users_collection.find_one({"name": name})
             
             # Prepare resume storage with both formats
             resume_storage = {
@@ -295,6 +300,30 @@ class DatabaseManager:
         
         result = self.users_collection.insert_one(user_doc)
         return str(result.inserted_id)
+    
+    def get_user_analyses(self, user_id, limit=50):
+        """Get all analyses for a specific user"""
+        try:
+            # Find analyses where the user_ref matches the user_id
+            analyses = list(self.analyses_collection.find({
+                "user_ref": ObjectId(user_id)
+            }).sort("timestamp", -1).limit(limit))
+            
+            # Format the analyses for display
+            formatted_analyses = []
+            for analysis in analyses:
+                formatted_analyses.append({
+                    "job_title": analysis.get("job_title", "Unknown"),
+                    "company": analysis.get("company", "Unknown"),
+                    "match_score": analysis.get("match_score", 0),
+                    "timestamp": analysis.get("timestamp", datetime.utcnow()).strftime("%Y-%m-%d %H:%M"),
+                    "explanation": analysis.get("explanation", "")
+                })
+            
+            return formatted_analyses
+        except Exception as e:
+            print(f"    ❌ Error getting user analyses: {e}")
+            return []
     
     def get_all_analyses(self, limit=100):
         """Get all analyses from database"""

@@ -24,7 +24,7 @@ Description: User profile page showing account info and analysis history
 
     <div class="form-group">
         <label><strong>Resume Uploaded:</strong></label>
-        {% if user.resume_data %}
+        {% if has_resume %}
             <p>✅ Yes</p>
         {% else %}
             <p>❌ Not yet uploaded</p>
@@ -35,12 +35,30 @@ Description: User profile page showing account info and analysis history
 
     <h3>Past Resume Analyses</h3>
     {% if reports %}
-        {% for report in reports %}
-            <div class="form-group">
-                <p><strong>{{ report.job_title }}</strong> at {{ report.company }}</p>
-                <p>Score: {{ report.match_score }} | Date: {{ report.timestamp }}</p>
-            </div>
-        {% endfor %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Job Title</th>
+                    <th>Company</th>
+                    <th>Match Score</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                <tr>
+                    <td>{{ report.job_title }}</td>
+                    <td>{{ report.company }}</td>
+                    <td>
+                        <span class="score {% if report.match_score >= 80 %}excellent{% elif report.match_score >= 60 %}good{% else %}poor{% endif %}">
+                            {{ report.match_score }}
+                        </span>
+                    </td>
+                    <td>{{ report.timestamp }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     {% else %}
         <p>No reports yet. Submit your first resume to begin.</p>
     {% endif %}

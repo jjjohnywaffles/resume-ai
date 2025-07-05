@@ -1,0 +1,12 @@
+# Copy this file to .env and fill in your actual API keys
+
+# API Keys (Required for AI analysis)
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Database Configuration
+MONGODB_URI=mongodb://localhost:27017/
+DATABASE_NAME=resume_analyzer
+
+# Flask Secret Key (change this to a secure random string)
+SECRET_KEY=your-secret-key-change-this-to-something-secure 

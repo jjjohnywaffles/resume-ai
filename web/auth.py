@@ -7,7 +7,7 @@ auth = Blueprint('auth', __name__)
 @auth.route('/signup', methods=['GET', 'POST'])
 def signup():
     if current_user.is_authenticated:
-        return redirect(url_for('main.profile'))
+        return redirect(url_for('index'))
     
     if request.method == 'POST':
         name = request.form.get('name')
@@ -37,7 +37,7 @@ def signup():
             user = User(user_data)
             login_user(user)
             flash('Account created successfully!', 'success')
-            return redirect(url_for('main.profile'))
+            return redirect(url_for('index'))
         else:
             flash('Email already exists', 'error')
     
@@ -46,7 +46,7 @@ def signup():
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('main.profile'))
+        return redirect(url_for('index'))
     
     if request.method == 'POST':
         email = request.form.get('email')
@@ -64,7 +64,7 @@ def login():
             login_user(user, remember=True)
             flash('Logged in successfully!', 'success')
             next_page = request.args.get('next')
-            return redirect(next_page or url_for('main.profile'))
+            return redirect(next_page or url_for('index'))
         else:
             flash('Invalid email or password', 'error')
     
@@ -75,4 +75,4 @@ def login():
 def logout():
     logout_user()
     flash('You have been logged out', 'success')
-    return redirect(url_for('main.home'))
+    return redirect(url_for('index'))

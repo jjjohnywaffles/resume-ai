@@ -6,12 +6,14 @@ Last Modified: 6/15/25
 Description: Additional Routes Module for future expansion of web functionality
 """
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, render_template
+from flask_login import login_required, current_user
+from core.database import DatabaseManager
 
-# Create blueprint for additional routes
-additional_routes = Blueprint('additional', __name__)
+# Create blueprint for profile and extra routes
+profile_routes = Blueprint('profile_routes', __name__)
 
-@additional_routes.route('/api/status')
+@profile_routes.route('/api/status')
 def api_status():
     """API status endpoint"""
     return jsonify({
@@ -20,7 +22,7 @@ def api_status():
         'service': 'Resume Analyzer API'
     })
 
-@additional_routes.route('/api/stats')
+@profile_routes.route('/api/stats')
 def api_stats():
     """Basic statistics endpoint - for future implementation"""
     return jsonify({
@@ -29,8 +31,26 @@ def api_stats():
         'message': 'Stats endpoint - coming soon'
     })
 
+@profile_routes.route('/profile')
+@login_required
+def profile():
+    """User profile page showing account info and analysis history"""
+    db = DatabaseManager()
+    
+    # Get user's analysis history
+    user_analyses = db.get_user_analyses(current_user.id)
+    
+    # Get user's resume status
+    user_data = db.get_user_by_id(current_user.id)
+    has_resume = user_data.get('resume_data') is not None if user_data else False
+    
+    return render_template('profile.html', 
+                         user=current_user, 
+                         reports=user_analyses,
+                         has_resume=has_resume)
+
 # Register this blueprint in your main app with:
-# app.register_blueprint(additional_routes, url_prefix='/additional')
+# app.register_blueprint(profile_routes, url_prefix='/profile')
 
 
 """
@@ -48,7 +68,7 @@ Includes:
 from flask import render_template  # Make sure this is at the top with other imports
 
 # Add this new route to render the user profile page
-@additional_routes.route('/profile')
+@profile_routes.route('/profile')
 def user_profile():
     # Dummy user data for testing
     user = {

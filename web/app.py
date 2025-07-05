@@ -15,7 +15,7 @@ Routes:
     - GET  /compare    : Compare candidates for specific positions
 """
 
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
 import os
 import tempfile
@@ -24,13 +24,14 @@ from werkzeug.utils import secure_filename
 
 # Import from core modules (clean imports)
 from core.analyzer import ResumeAnalyzer
+from core.analyzer_demo import ResumeAnalyzerDemo
 from core.database import DatabaseManager, User
 from core.pdf_reader import PDFReader
 from config import get_config
-from flask import Flask
-from flask_login import LoginManager
+from flask_login import LoginManager, login_required, current_user
 
-from .auth import auth as auth_blueprint 
+from .auth import auth as auth_blueprint
+from web.routes import profile_routes  # updated import
 
 ai_analyzer = None
 db_manager = None
@@ -55,9 +56,6 @@ def create_app():
     """Create and configure Flask application"""
     app = Flask(__name__, template_folder='../templates')
     
-    from web.routes import additional_routes  # adjust import if needed
-    app.register_blueprint(additional_routes)  # this makes /profile accessible
-
     # Get configuration
     config = get_config()
     app.secret_key = config.SECRET_KEY
@@ -69,13 +67,24 @@ def create_app():
     
     # Initialize components
     try:
+        # Try to initialize the real analyzer first
         ai_analyzer = ResumeAnalyzer()
+        print("Using real ResumeAnalyzer with API keys")
+    except Exception as e:
+        print(f"Real analyzer failed to initialize: {e}")
+        print("Falling back to demo analyzer...")
+        try:
+            ai_analyzer = ResumeAnalyzerDemo()
+        except Exception as demo_e:
+            print(f"Demo analyzer also failed: {demo_e}")
+            ai_analyzer = None
+    
+    try:
         db_manager = DatabaseManager()
         pdf_reader = PDFReader()
-        print("Application components initialized successfully")
+        print("Database and PDF reader initialized successfully")
     except Exception as e:
-        print(f"Error initializing components: {e}")
-        ai_analyzer = None
+        print(f"Error initializing database or PDF reader: {e}")
         db_manager = None
         pdf_reader = None
     
@@ -89,17 +98,19 @@ def create_app():
     def load_user(user_id):
         return User.get(user_id)
 
+    # Register blueprints
     app.register_blueprint(auth_blueprint)
+    app.register_blueprint(profile_routes)
 
 
     @app.route('/')
     def index():
-        """Main page"""
+        """Main page - analyzer accessible to everyone"""
         return render_template('index.html')
     
     @app.route('/analyze', methods=['POST'])
     def analyze():
-        """Handle resume analysis"""
+        """Handle resume analysis - works for both authenticated and guest users"""
         if not all([ai_analyzer, db_manager, pdf_reader]):
             return jsonify({
                 'success': False,
@@ -107,8 +118,14 @@ def create_app():
             }), 500
         
         try:
-            # Get form data
+            # Get form data - use current user's name if authenticated, otherwise use provided name
             name = request.form.get('name', '').strip()
+            if not name:
+                if current_user.is_authenticated:
+                    name = current_user.name
+                else:
+                    name = "Guest User"
+            
             job_title = request.form.get('job_title', '').strip()
             company = request.form.get('company', '').strip()
             job_description = request.form.get('job_description', '').strip()
@@ -181,10 +198,13 @@ def create_app():
                     'extracted_text': resume_text
                 }
                 
+                # Save analysis - only save user_id if authenticated
+                user_id = current_user.id if current_user.is_authenticated else None
                 db_manager.save_analysis(
                     name, resume_data, job_requirements, match_score,
                     explanation, job_title, company, 
-                    original_resume=original_resume_data  # ADD THIS LINE
+                    original_resume=original_resume_data,
+                    user_id=user_id
                 )
                 
                 # Store in session for explanation view
@@ -299,10 +319,13 @@ def create_app():
                     'extracted_text': resume_text
                 }
                 
+                # Save analysis - only save user_id if authenticated
+                user_id = current_user.id if current_user.is_authenticated else None
                 db_manager.save_analysis(
                     name, resume_data, job_requirements, match_score,
                     explanation, job_title, company,
-                    original_resume=original_resume_data  # ADD THIS LINE
+                    original_resume=original_resume_data,
+                    user_id=user_id
                 )
                 
                 # Store in session for explanation view

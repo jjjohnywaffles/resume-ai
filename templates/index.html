@@ -21,18 +21,30 @@ JavaScript Functions:
 <div class="container">
     <h1>Resume Analyzer</h1>
     
-    <!-- User Profile Button -->
+    <!-- User Profile Button (only show if authenticated) -->
+    {% if current_user.is_authenticated %}
     <div style="margin-bottom: 15px;">
-        <a href="{{ url_for('additional.user_profile') }}" class="btn" style="text-decoration: none; padding: 10px 15px; background-color: #4CAF50; color: white; border-radius: 5px;">
+        <a href="{{ url_for('profile_routes.profile') }}" class="btn" style="text-decoration: none; padding: 10px 15px; background-color: #4CAF50; color: white; border-radius: 5px;">
             👤 View Profile
         </a>
     </div>
+    {% else %}
+    <div style="margin-bottom: 15px;">
+        <p style="color: #666; font-style: italic;">
+            💡 <a href="{{ url_for('auth.signup') }}" style="color: #27ae60;">Sign up</a> or <a href="{{ url_for('auth.login') }}" style="color: #27ae60;">login</a> to save your analysis history and access your profile!
+        </p>
+    </div>
+    {% endif %}
 
 
     <form id="analyzeForm" enctype="multipart/form-data">
         <div class="form-group">
             <label for="name">Candidate Name:</label>
-            <input type="text" id="name" name="name" required>
+            {% if current_user.is_authenticated %}
+            <input type="text" id="name" name="name" placeholder="Leave blank to use your account name">
+            {% else %}
+            <input type="text" id="name" name="name" placeholder="Enter your name" required>
+            {% endif %}
         </div>
         
         <div class="form-group">
