@@ -2,23 +2,32 @@
 File: database.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/25/25
-Description: Database management module for MongoDB operations with 
-            three collection schema. Handles database connections, queries, 
-            and data persistence for resume analyses. Stores resumes in 
-            original uploaded format.
+Last Modified: 7/5/25
+Description: Database management module for MongoDB operations with three collection schema.
+             Handles database connections, queries, and data persistence for resume analyses.
+             Stores resumes in original uploaded format with both processed and raw data.
+
 Classes:
-   - DatabaseManager: MongoDB interface with three collection architecture
+   - DatabaseManager: MongoDB interface with three collection architecture and user management
+   - User: Flask-Login compatible user class for authentication and session management
+
 Collections:
-   - users: Stores user information and resume data
-   - jobs: Stores job descriptions and requirements
-   - analyses: Links users to jobs with analysis results and scores
+   - users: Stores user information, authentication data, and resume data (both processed and original format)
+   - jobs: Stores job descriptions, requirements, and company information
+   - analyses: Links users to jobs with analysis results, scores, and detailed explanations
+
 Methods:
-   - save_analysis(): Store analysis results across three collections
-   - get_all_analyses(): Fetch all stored analyses with legacy format
-   - compare_candidates_for_position(): Compare candidates for same position
-   - _save_user_resume(): Internal method to store user and resume data
-   - _save_job(): Internal method to store job posting information
+   - save_analysis(): Store complete analysis results across all three collections
+   - get_all_analyses(): Fetch all stored analyses with legacy format support
+   - compare_candidates_for_position(): Compare multiple candidates for the same position
+   - _save_user_resume(): Internal method to store user and resume data with both formats
+   - _save_job(): Internal method to store job posting information with deduplication
+   - get_user_analyses(): Retrieve analysis history for specific users
+   - update_user_resume(): Update user's resume data with new uploads
+   - verify_user(): Authenticate users with password verification
+   - create_user(): Create new user accounts with hashed passwords
+   - get_user_by_email/get_user_by_id(): User lookup methods for authentication
+   - get_all_jobs(): Retrieve all job listings with formatting
    - Various query methods maintaining existing Flask app compatibility
 """
 
