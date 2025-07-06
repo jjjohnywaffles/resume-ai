@@ -2,7 +2,7 @@
 File: app.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/25/25
+Last Modified: 7/5/25
 Description: Main Flask application server for the Resume Analyzer web application.
              Handles HTTP routes, file uploads, and coordinates between the AI analyzer,
              database, and PDF reader components to provide resume-job matching analysis.

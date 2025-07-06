@@ -1,8 +1,53 @@
+<!--
+File: jobs.html
+Author: Jonathan Hu
+Date Created: 6/15/25
+Last Modified: 7/5/25
+Description: Job Listings Page Template for ResumeMatchAI Web Application
+
+This template displays available job postings with search functionality for users
+to browse and find relevant positions for resume analysis.
+
+Key Features:
+- Job listings display with title and company information
+- Search functionality for filtering jobs
+- Responsive layout for job information
+- Clean and simple job presentation
+- Search form with query persistence
+
+Page Sections:
+- Search Form: Input field for searching by job title or company
+- Job Listings: Display of available job postings
+- Job Details: Title, company, and description for each job
+
+Template Variables:
+- jobs: List of job objects with title, company, and description
+- search: Current search query for form persistence
+
+Form Functionality:
+- GET method for search queries
+- Search input with placeholder text
+- Submit button for search execution
+
+Template Structure:
+- Standalone HTML template (does not extend base.html)
+- Uses Jinja2 template engine for dynamic content
+- Basic HTML structure with minimal styling
+
+Dependencies:
+- Flask template engine (Jinja2)
+- Jobs route for data retrieval
+- Basic HTML and CSS
+
+Usage:
+This template is rendered by the jobs route and provides
+the user interface for browsing available job postings.
+-->
+
 <!DOCTYPE html>
 <html>
 <head>
   <title>Job Listings</title>
-</head>
 <body>
   <h1>Available Job Postings</h1>
 

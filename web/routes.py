@@ -2,8 +2,34 @@
 File: routes.py
 Author: Jonathan Hu
 Date Created: 6/15/25
-Last Modified: 6/15/25
-Description: Additional Routes Module for future expansion of web functionality
+Last Modified: 7/5/25
+Description: Profile and API Routes Module for ResumeMatchAI web application
+
+This module contains Flask routes for user profile management and API endpoints.
+It extends the main web application with additional functionality for authenticated users.
+
+Routes Included:
+- /profile: User profile page displaying account info, resume status, and analysis history
+- /profile/update_resume: Handles resume upload/update for user profiles
+- /api/status: Health check endpoint for API status
+- /api/stats: Statistics endpoint (placeholder for future implementation)
+
+Key Features:
+- Resume filename display on profile page
+- Secure file upload handling with temporary file cleanup
+- AI-powered resume data extraction and storage
+- User authentication required for profile routes
+- Flash message feedback for user actions
+
+Dependencies:
+- Flask Blueprint for modular routing
+- Flask-Login for authentication
+- Core modules: DatabaseManager, PDFReader, ResumeAnalyzer
+- Werkzeug for secure filename handling
+
+Usage:
+Register this blueprint in the main Flask app with:
+app.register_blueprint(profile_routes, url_prefix='/profile')
 """
 
 from flask import Blueprint, jsonify, render_template, request, redirect, url_for, flash
@@ -127,6 +153,3 @@ def update_resume():
                 print(f"Warning: Could not clean up temporary file {temp_path}: {cleanup_error}")
     
     return redirect(url_for('profile_routes.profile'))
-
-# Register this blueprint in your main app with:
-# app.register_blueprint(profile_routes, url_prefix='/profile')

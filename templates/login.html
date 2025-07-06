@@ -1,3 +1,45 @@
+<!--
+File: login.html
+Author: Jonathan Hu
+Date Created: 6/15/25
+Last Modified: 7/5/25
+Description: User Login Page Template for ResumeMatchAI Web Application
+
+This template provides the login interface for authenticated users to access
+their profiles, saved resumes, and analysis history.
+
+Key Features:
+- Clean and simple login form
+- Email and password input fields
+- Form validation and error handling
+- Link to signup page for new users
+- Consistent styling with base template
+- Responsive design for all devices
+
+Form Fields:
+- Email: Required email input with validation
+- Password: Required password input with secure typing
+
+Template Variables:
+- Uses Flask-Login for authentication
+- Flash messages for error/success feedback
+- URL routing for form submission and navigation
+
+Template Blocks:
+- Extends base.html for consistent styling and navigation
+- Uses Jinja2 template engine for dynamic content
+
+Dependencies:
+- Flask template engine (Jinja2)
+- Base template (base.html)
+- Authentication routes (auth.login)
+- Flask-Login for user session management
+
+Usage:
+This template is rendered by the auth.login() function and provides
+the user interface for account authentication.
+-->
+
 {% extends "base.html" %}
 
 {% block content %}

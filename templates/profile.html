@@ -1,9 +1,58 @@
 <!--
-File: templates/profile.html
-Author: Lavin Ma
+File: profile.html
+Author: Lavin Ma, edited by Jonathan Hu
 Date Created: 6/24/25
-Last Modified: 6/25/25
-Description: User profile page showing account info and analysis history
+Last Modified: 7/5/25
+Description: User Profile Page Template for ResumeMatchAI Web Application
+
+This template displays the user's profile information, resume status, and analysis history.
+It provides functionality for users to view their account details, manage their uploaded
+resumes, and track their past resume analyses.
+
+Key Features:
+- User account information display (name, email)
+- Resume upload status with filename display
+- Interactive resume upload/update form
+- Analysis history table with match scores
+- Color-coded score display (excellent, good, poor)
+- Collapsible resume upload form
+- Responsive table layout for analysis results
+
+Profile Sections:
+- Account Information: Name and email display
+- Resume Status: Current resume filename and upload status
+- Resume Management: Upload/update form with file validation
+- Analysis History: Table of past analyses with scores and dates
+
+Interactive Elements:
+- Resume upload/update buttons
+- Collapsible form for resume management
+- Color-coded match scores in history table
+- Form validation for PDF file uploads
+
+Template Variables:
+- user: Current user object with name and email
+- has_resume: Boolean indicating if user has uploaded a resume
+- resume_filename: Name of the currently uploaded resume file
+- reports: List of past analysis reports with job details and scores
+
+JavaScript Functions:
+- showResumeUpload(): Displays the resume upload form
+- hideResumeUpload(): Hides the resume upload form
+
+Template Blocks:
+- Extends base.html for consistent styling and navigation
+- Uses Jinja2 template engine for dynamic content
+
+Dependencies:
+- Flask template engine (Jinja2)
+- Base template (base.html)
+- Profile routes for form handling
+- CSS styling from base template
+
+Usage:
+This template is rendered by the profile_routes.profile() function and provides
+the user interface for profile management and analysis history viewing.
 -->
 
 {% extends "base.html" %}

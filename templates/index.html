@@ -1,17 +1,51 @@
 <!--
-File: templates/index.html
+File: index.html
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/12/25
-Description: Main page template for the Resume Analyzer Flask application.
-             Contains the analysis form, results display area, and modal windows
-             for detailed explanations and history viewing.
-Extends: base.html
-JavaScript Functions:
-    - Form submission handler for resume analysis
-    - Modal window controls for explanation and history
-    - Results display formatting
-    - Error handling and loading states
+Last Modified: 7/5/25
+Description: Main Analysis Page Template for ResumeMatchAI Web Application
+
+This is the primary template for the resume analysis functionality. It provides
+a comprehensive interface for users to analyze their resumes against job descriptions
+and view detailed results and explanations.
+
+Key Features:
+- Interactive analysis form with all required fields
+- Support for both file upload and saved resume options
+- Real-time form validation and error handling
+- Dynamic results display with score visualization
+- Modal dialogs for detailed explanations and analysis history
+- User authentication integration with profile access
+- Responsive design with loading states and feedback
+
+Form Fields:
+- Candidate Name (auto-filled for authenticated users)
+- Job Title and Company
+- Resume upload with saved resume option
+- Job Description textarea
+- Analysis type selection (upload vs saved resume)
+
+JavaScript Functionality:
+- Asynchronous form submission with fetch API
+- Modal window management for explanations and history
+- Dynamic content loading and display
+- Error handling and user feedback
+- Form clearing and reset functionality
+- Loading state management
+
+Template Blocks:
+- Extends base.html for consistent styling and navigation
+- Uses Jinja2 template engine for dynamic content
+
+Dependencies:
+- Flask template engine (Jinja2)
+- Base template (base.html)
+- JavaScript for interactive functionality
+- CSS styling from base template
+
+Usage:
+This template is rendered by the main Flask app routes and provides
+the core user interface for resume analysis functionality.
 -->
 
 

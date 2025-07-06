@@ -1,3 +1,47 @@
+<!--
+File: signup.html
+Author: Jonathan Hu
+Date Created: 6/15/25
+Last Modified: 7/5/25
+Description: User Registration Page Template for ResumeMatchAI Web Application
+
+This template provides the user registration interface for new users to create
+accounts and access personalized features like saved resumes and analysis history.
+
+Key Features:
+- Complete user registration form
+- Form validation for all required fields
+- Password confirmation for security
+- Link to login page for existing users
+- Consistent styling with base template
+- Responsive design for all devices
+
+Form Fields:
+- Full Name: Required text input for user's full name
+- Email: Required email input with validation
+- Password: Required password input with secure typing
+- Confirm Password: Required password confirmation for security
+
+Template Variables:
+- Uses Flask-Login for user creation
+- Flash messages for error/success feedback
+- URL routing for form submission and navigation
+
+Template Blocks:
+- Extends base.html for consistent styling and navigation
+- Uses Jinja2 template engine for dynamic content
+
+Dependencies:
+- Flask template engine (Jinja2)
+- Base template (base.html)
+- Authentication routes (auth.signup)
+- Flask-Login for user session management
+
+Usage:
+This template is rendered by the auth.signup() function and provides
+the user interface for account registration.
+-->
+
 {% extends "base.html" %}
 
 {% block content %}
