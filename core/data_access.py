@@ -2,30 +2,96 @@
 File: data_access.py
 Author: Jonathan Hu
 Date Created: 6/20/25
-Last Modified: 6/20/25
-Description: Comprehensive data access layer for the resume analyzer application.
-             Provides for retrieving and analyzing data from the database. Designed for use by other
-             developers and API endpoints.
+Last Modified: 7/5/25
+Description: Data Access Layer for ResumeMatchAI Platform
 
-Core Features:
-- Queries with indexing
-- Error handling
-- JSON-serializable responses for APIs
-- Advanced analytics and statistics (CURRENTLY TESTING)
-- Flexible search and filtering capabilities
+This module provides a high-level interface for accessing and analyzing
+data from the database. It turns complex MongoDB operations into methods 
+while providing advanced analytics and reporting capabilities.
 
-Collections:
-- users: User profiles and resume data
-- jobs: Job descriptions and requirements
-- analyses: Analysis results linking users to jobs
+Key Features:
+- High-level data access methods for all collections
+- Automatic database indexing for optimal performance
+- JSON-serializable responses for API integration
+- Advanced search and filtering capabilities
+- Comprehensive analytics and reporting functions
+- Error handling and data validation
+- Pagination support for large datasets
+- ObjectId conversion for API compatibility
 
-Usage:
-    from core.data_access import DataAccessLayer
-    
-    dal = DataAccessLayer()
-    python_devs = dal.get_users_by_skill("Python")
-    google_jobs = dal.get_jobs_by_company("Google")
-    top_matches = dal.get_high_scoring_analyses(min_score=80)
+Core Collections:
+- users: User profiles, authentication data, and resume information
+- jobs: Job descriptions, requirements, and company information
+- analyses: Analysis results linking users to jobs with scores and explanations
+
+Performance Optimizations:
+- Strategic database indexing on frequently queried fields
+- Efficient query patterns with proper sorting and limiting
+- Connection pooling and resource management
+- Caching-friendly data structures
+- Optimized aggregation pipelines for analytics
+
+Data Access Methods:
+- User Management: CRUD operations, search, and profile management
+- Job Management: Job listings, company searches, skill-based filtering
+- Analysis Management: Score-based queries, candidate comparisons, trend analysis
+- Analytics: Statistical summaries, skill demand analysis, talent pipeline insights
+
+Search Capabilities:
+- Full-text search across multiple collections
+- Skill-based user and job matching
+- Company and experience-based filtering
+- Score range and date-based queries
+- Advanced multi-criteria search with filters
+- (More to come)
+
+API Integration Features:
+- Automatic ObjectId to string conversion
+- JSON-serializable response formatting
+- Consistent error handling and logging
+- Pagination support for large result sets
+- Optional ID conversion for flexibility
+
+Database Schema Support:
+- User profiles with resume data and skills
+- Job postings with requirements and company info
+- Analysis results with scores and explanations
+- Timestamp tracking for all operations
+- Relationship mapping between entities
+
+Error Handling:
+- Comprehensive exception catching and logging
+- Degradation for database failures
+- Input validation and sanitization
+- Safe default values for failed operations
+- Detailed error messages for debugging
+
+Usage Examples:
+# Basic data access
+dal = DataAccessLayer()
+users = dal.get_all_users(limit=50)
+jobs = dal.get_jobs_by_company("Google")
+
+# Advanced search
+python_devs = dal.get_users_by_skill("Python")
+top_candidates = dal.get_high_scoring_analyses(min_score=85)
+
+# Analytics and reporting
+stats = dal.get_database_stats()
+skill_demand = dal.get_skill_demand_analysis()
+user_report = dal.generate_user_report("user@example.com")
+
+# Quick utility functions
+user = quick_user_lookup("user@example.com")
+candidates = quick_top_candidates(min_score=80)
+
+Dependencies:
+- PyMongo for MongoDB operations
+- BSON for ObjectId handling
+- Config module for database configuration
+- Regular expressions for pattern matching
+- Datetime for temporal queries
+
 """
 
 from pymongo import MongoClient, ASCENDING, DESCENDING
