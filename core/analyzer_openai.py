@@ -1,22 +1,31 @@
 """
-File: analyzer.py
+File: analyzer_openai.py
 Author: Jonathan Hu
 Date Created: 6/12/25
-Last Modified: 6/19/25 (Updated for OpenAI v1.0+ with full async support and caching)
+Last Modified: 7/5/25
 Description: AI analysis module that interfaces with OpenAI's GPT model to extract
              structured data from resumes and job descriptions, then calculates
-             compatibility scores with detailed explanations. Now uses OpenAI v1.0+
+             compatibility scores with detailed explanations. Uses OpenAI v1.0+
              with async processing and caching for maximum performance.
+
 Classes:
-    - ResumeAnalyzer: Main class for AI-powered resume and job analysis
+    - ResumeAnalyzer: Main class for AI-powered resume and job analysis with OpenAI GPT integration
+
+Collections:
+    - N/A (This module does not interact with database collections)
+
 Methods:
-    - extract_resume_data(): Parse resume text into structured JSON (async with caching)
-    - extract_job_requirements(): Parse job description into requirements (async with caching)
-    - extract_data_concurrent(): Run both extractions simultaneously (async)
-    - explain_match_score(): Generate detailed compatibility analysis (async)
-    - calculate_match_score(): Calculate numerical compatibility score
-    - get_detailed_analysis(): Get both score and explanation
-    - analyze_resume_job_match_fast(): Complete analysis workflow (optimized)
+    - extract_resume_data(): Parse resume text into structured JSON with async caching
+    - extract_job_requirements(): Parse job description into requirements with async caching
+    - extract_data_concurrent(): Run both extractions simultaneously for performance
+    - explain_match_score(): Generate detailed compatibility analysis with scoring
+    - calculate_match_score(): Calculate numerical compatibility score (0-100)
+    - get_detailed_analysis(): Get both score and explanation in structured format
+    - analyze_resume_job_match_fast(): Complete optimized analysis workflow
+    - analyze_multiple_resumes(): Batch processing for multiple resume-job pairs
+    - _extract_resume_data_sync/_extract_job_requirements_sync(): Sync fallback methods
+    - _extract_score_from_response(): Parse numerical scores from AI responses
+    - _parse_explanation_breakdown(): Structure detailed explanations for display
 """
 import json
 import asyncio
