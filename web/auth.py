@@ -1,3 +1,83 @@
+"""
+File: auth.py
+Author: Jonathan Hu
+Date Created: 6/15/25
+Last Modified: 7/5/25
+Description: Authentication Blueprint for ResumeMatchAI Web Application
+
+This module provides user authentication functionality for the ResumeMatchAI platform.
+It handles user registration, login, logout, and session management using Flask-Login
+for secure user authentication and session handling.
+
+Key Features:
+- User registration with validation and security checks
+- Secure login with password verification
+- Session management with remember-me functionality
+- Logout functionality with session cleanup
+- Flash message feedback for user actions
+- Redirect handling for authenticated users
+
+Authentication Routes:
+- GET/POST /signup    : User registration with form validation
+- GET/POST /login     : User login with credential verification
+- GET     /logout     : User logout with session termination
+
+Security Features:
+- Password confirmation validation during registration
+- Minimum password length requirement (8 characters)
+- Email uniqueness validation
+- Secure password hashing via DatabaseManager
+- Session-based authentication with Flask-Login
+- CSRF protection through Flask forms
+- Redirect protection for authenticated users
+
+Form Validation:
+- Required field validation for all inputs
+- Email format validation (handled by HTML5)
+- Password strength requirements
+- Password confirmation matching
+- Duplicate email prevention
+
+User Experience:
+- Flash messages for success/error feedback
+- Automatic redirects for authenticated users
+- Remember-me functionality for persistent sessions
+- Next page redirect after login
+- User-friendly error messages
+
+Template Integration:
+- Renders login.html and signup.html templates
+- Uses Flask-Login for user session management
+- Integrates with base template styling
+- Flash message display for user feedback
+
+Database Integration:
+- Uses DatabaseManager for user operations
+- User creation with hashed passwords
+- User verification with password checking
+- User session management with Flask-Login
+
+Dependencies:
+- Flask Blueprint for modular routing
+- Flask-Login for authentication and session management
+- Core database module for user operations
+- Flask templates for user interface
+- Werkzeug for security utilities
+
+Error Handling:
+- Form validation errors with user feedback
+- Database operation error handling
+- Authentication failure handling
+- Redirect loop prevention
+
+Usage:
+Register this blueprint in the main Flask app with:
+app.register_blueprint(auth)
+
+The blueprint provides secure authentication endpoints that integrate
+with the main application's user management system.
+"""
+
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from core.database import DatabaseManager, User
