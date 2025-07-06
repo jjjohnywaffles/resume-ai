@@ -3,16 +3,81 @@ File: app.py
 Author: Jonathan Hu
 Date Created: 6/12/25
 Last Modified: 7/5/25
-Description: Main Flask application server for the Resume Analyzer web application.
-             Handles HTTP routes, file uploads, and coordinates between the AI analyzer,
-             database, and PDF reader components to provide resume-job matching analysis.
-Dependencies: Flask, werkzeug, ai_analyzer, database, pdf_reader, config
-Routes:
-    - GET  /           : Main page with analysis form
-    - POST /analyze    : Process resume and job description
-    - GET  /explanation: Retrieve detailed scoring explanation
-    - GET  /history    : View all previous analyses
-    - GET  /compare    : Compare candidates for specific positions
+Description: Main Flask Application Server for ResumeMatchAI Web Application
+
+This is the core Flask application that serves as the web server for the ResumeMatchAI
+platform. It handles all HTTP routes, coordinates between different components,
+and provides the main API endpoints for resume analysis functionality.
+
+Key Features:
+- Resume analysis with AI-powered matching
+- User authentication and profile management
+- File upload handling with security measures
+- Database integration for storing analyses and user data
+- PDF text extraction and processing
+- Real-time analysis results with detailed explanations
+- Analysis history and comparison features
+- Job listings and search functionality
+
+Core Components:
+- AI Analyzer: Processes resumes and job descriptions using OpenAI API
+- Database Manager: Handles MongoDB operations for data persistence
+- PDF Reader: Extracts text content from uploaded PDF files
+- Authentication System: User registration, login, and session management
+
+HTTP Routes:
+- GET  /                    : Main analysis page with form interface
+- POST /analyze            : Standard resume analysis endpoint
+- POST /analyze_fast       : Optimized fast analysis endpoint
+- GET  /explanation        : Retrieve detailed scoring explanations
+- GET  /history            : View all previous analyses
+- GET  /compare/<job>/<company> : Compare candidates for specific positions
+- GET  /download_resume/<user_id> : Download user resume files
+- GET  /jobs               : Browse available job listings
+- GET  /users_with_resumes : Admin endpoint for user management
+
+Authentication Routes (via auth blueprint):
+- GET/POST /login          : User login interface
+- GET/POST /signup         : User registration interface
+- GET  /logout             : User logout functionality
+
+Profile Routes (via profile_routes blueprint):
+- GET  /profile            : User profile page
+- POST /profile/update_resume : Resume upload/update functionality
+- GET  /api/status         : API health check endpoint
+- GET  /api/stats          : Statistics endpoint (placeholder)
+
+Security Features:
+- File upload validation and sanitization
+- Secure filename handling with werkzeug
+- Maximum file size limits (16MB)
+- CORS configuration for cross-origin requests
+- User authentication and session management
+- Input validation and error handling
+
+Configuration:
+- Environment-based configuration via config.py
+- Secret key management for session security
+- Temporary file handling for uploads
+- Database connection management
+- API key management for AI services
+
+Dependencies:
+- Flask: Web framework
+- Flask-Login: User authentication
+- Flask-CORS: Cross-origin resource sharing
+- Werkzeug: File upload utilities
+- Core modules: analyzer, database, pdf_reader
+- Configuration: config.py for settings
+
+Error Handling:
+- 413 error handler for large file uploads
+- Comprehensive exception handling in routes
+- User-friendly error messages
+- Graceful degradation when components fail
+
+Usage:
+This application is the main entry point for the ResumeMatchAI web service.
 """
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
